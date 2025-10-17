@@ -1,0 +1,369 @@
+/* FRC Robot Dashboard Styles */
+
+body {
+  background: #27293d;
+  color: #f8f8f8;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  margin: 0;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 90vw;
+  max-width: 1200px;
+  margin: 1rem 0;
+}
+
+h1 {
+  font-size: 2.2rem;
+  color: #6ec1e4;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  letter-spacing: 1px;
+  margin: 0;
+}
+
+.connection-status {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.connection-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.connection-indicator.connected {
+  background-color: #4CAF50;
+  box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+}
+
+.connection-indicator.disconnected {
+  background-color: #F44336;
+  box-shadow: 0 0 10px rgba(244, 67, 54, 0.5);
+}
+
+/* Driver Station Controls */
+.control-panel {
+  background: #20222e;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  width: 90vw;
+  max-width: 1200px;
+  border: 1px solid #444;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.13);
+  box-sizing: border-box;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.control-section {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.control-buttons, .mode-buttons, .config-section {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  flex-shrink: 1;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.btn {
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  min-width: 0;
+  white-space: nowrap;
+  flex-shrink: 1;
+  box-sizing: border-box;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+.btn-enable {
+  background: #4CAF50;
+  color: white;
+}
+
+.btn-disable {
+  background: #f44336;
+  color: white;
+}
+
+.btn-estop {
+  background: #FF9800;
+  color: white;
+  font-weight: 800;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0.7); }
+  70% { box-shadow: 0 0 0 10px rgba(255, 152, 0, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0); }
+}
+
+.btn-mode {
+  background: #6c757d;
+  color: white;
+}
+
+.btn-mode.active {
+  background: #4CAF50 !important;
+  color: white !important;
+  box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.3), 0 0 15px rgba(76, 175, 80, 0.4) !important;
+  font-weight: 700 !important;
+  transform: scale(1.05);
+}
+
+.btn-config {
+  background: #6c757d;
+  color: white;
+  padding: 8px 16px;
+  font-size: 12px;
+}
+
+#team-input, #address-input {
+  padding: 8px 12px;
+  border: 1px solid #444;
+  border-radius: 4px;
+  background: #27293d;
+  color: #f8f8f8;
+  font-size: 14px;
+  width: 120px;
+}
+
+#team-input:focus, #address-input:focus {
+  outline: none;
+  border-color: #2196F3;
+  box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
+}
+
+.dashboard {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: flex-start;
+  margin: 2rem auto;
+  gap: 3vw;
+  width: 90vw;
+  max-width: 1200px;
+}
+
+.logs-section {
+  flex: 2;
+  min-width: 350px;
+}
+
+.log-title {
+  color: #ffcf40;
+  font-weight: bold;
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+  margin-left: 0.25rem;
+  letter-spacing: 0.5px;
+  text-align: left;
+}
+
+.log-container {
+  background: #20222e;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  width: 100%;
+  height: 500px;
+  overflow-y: auto;
+  border: 1px solid #444;
+  font-family: 'Fira Mono', 'Consolas', monospace;
+  font-size: 1rem;
+  color: #e1e1e1;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.13);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.widgets-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.widgets-section {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  margin-bottom: 1rem;
+}
+
+.widget-title {
+  color: #ffcf40;
+  font-weight: bold;
+  font-size: 1.05rem;
+  margin-bottom: 0.6rem;
+  letter-spacing: 0.5px;
+  text-align: left;
+  padding-left: 0.1rem;
+}
+
+.widgets-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: flex-start;
+  align-items: flex-start;
+  max-width: 380px; /* 3 widgets of 100px + gaps */
+}
+
+.widget {
+  width: 100px;
+  min-width: 85px;
+  max-width: 120px;
+  background: #20222e;
+  height: 70px;
+  border-radius: 0.5rem;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.13);
+  border: 1px solid #444;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0.3rem 0.2rem;
+  transition: background 0.2s, box-shadow 0.2s;
+  text-align: center;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #f8f8f8;
+}
+
+/* Entire widget colored by status */
+.widget.status-green { background: #31e86f; color: #222; }
+.widget.status-yellow { background: #ffe156; color: #222; }
+.widget.status-red { background: #ff5454; color: #fff; }
+/* .widget.status-default { color: #f8f8f8; } */
+
+.widget-label {
+  font-size: 1.02rem;
+  font-weight: 600;
+  margin-bottom: 0.15rem;
+  letter-spacing: 0.2px;
+  text-align: center;
+  color: inherit;
+}
+
+.widget-value {
+  font-size: 0.92rem;
+  font-family: 'Fira Mono', 'Consolas', monospace;
+  color: inherit;
+  font-weight: 400;
+}
+
+@media (max-width: 900px) {
+  .dashboard { flex-direction: column; align-items: stretch; }
+  .widgets-main, .logs-section { min-width: 0; }
+  .logs-section, .widgets-main { width: 100%; }
+  .widgets-container { max-width: 100%; justify-content: center; }
+  .control-section { justify-content: center; }
+  .header { flex-direction: column; gap: 1rem; text-align: center; }
+}
+
+@media (max-width: 600px) {
+  h1 { font-size: 1.3rem; }
+  .log-container { height: 120px; font-size: 0.85rem; }
+  .widget { width: 80px; height: 55px; font-size: 0.85rem; }
+  .widget-label { font-size: 0.89rem; }
+  .widgets-container { gap: 0.5rem; }
+  .control-buttons, .mode-buttons, .config-section { 
+    flex-direction: column; 
+    width: 100%; 
+  }
+  .btn { width: 100%; }
+  #team-input, #address-input { width: 100%; }
+}
+
+/* Status indicator colors */
+.widget-status.ok {
+  background-color: #4CAF50; /* Green */
+}
+
+.widget-status.busy {
+  background-color: #FF9800; /* Orange */
+}
+
+.widget-status.error {
+  background-color: #F44336; /* Red */
+}
+
+.widget-status.idle {
+  background-color: #9E9E9E; /* Gray */
+}
+
+/* Robot mode indicator */
+.mode-indicator {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.mode-indicator.disabled {
+  background-color: #9E9E9E;
+  color: white;
+}
+
+.mode-indicator.autonomous {
+  background-color: #FF9800;
+  color: white;
+}
+
+.mode-indicator.teleop {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.mode-indicator.test {
+  background-color: #2196F3;
+  color: white;
+}
+
+.mode-indicator.unknown {
+  background-color: #666;
+  color: white;
+}
+
+/* Log styling */
+.log-error { color: #F44336; }
+.log-success { color: #4CAF50; }
+.log-warning { color: #FF9800; }
+.log-info { color: #2196F3; }
+.log-debug { color: #9C27B0; }
+.log-thread { color: #00BCD4; }

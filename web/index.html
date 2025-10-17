@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>FRC Robot Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="header">
+    <h1>FRC Robot Dashboard</h1>
+    <div class="connection-status">
+      <div id="connection-indicator" class="connection-indicator disconnected"></div>
+      <span id="connection-status">Disconnected</span>
+      <div id="robot-mode" class="mode-indicator unknown">UNKNOWN</div>
+    </div>
+  </div>
+
+  <!-- Driver Station Control Panel -->
+  <div class="control-panel">
+    <div class="control-section">
+      <div class="control-buttons">
+        <button id="enable-btn" class="btn btn-enable" onclick="enableRobot()">ENABLE</button>
+        <button id="disable-btn" class="btn btn-disable" onclick="disableRobot()">DISABLE</button>
+        <button id="estop-btn" class="btn btn-estop" onclick="emergencyStop()">E-STOP</button>
+      </div>
+      <div class="mode-buttons">
+        <button id="teleop-btn" class="btn btn-mode" onclick="setMode('teleop')">TELEOP</button>
+        <button id="auto-btn" class="btn btn-mode" onclick="setMode('auto')">AUTO</button>
+        <button id="test-btn" class="btn btn-mode" onclick="setMode('test')">TEST</button>
+      </div>
+      <div class="config-section">
+        <input type="number" id="team-input" min="1" max="9999" placeholder="Team #">
+        <button class="btn btn-config" onclick="setTeamNumber()">Set Team</button>
+        <input type="text" id="address-input" placeholder="Robot IP">
+        <button class="btn btn-config" onclick="setRobotAddress()">Set IP</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="dashboard">
+    <div class="logs-section">
+      <div class="log-title">Robot Logs</div>
+      <div class="log-container" id="robot-log">Loading log...</div>
+    </div>
+    
+    <div class="widgets-main">
+      <div class="widgets-section">
+        <div class="widget-title">Hardware Status</div>
+        <div class="widgets-container" id="hardware-widgets">
+          <div class="widget" id="sonic-left">
+            <div class="widget-label">Sonic Left</div>
+            <div class="widget-status idle"></div>
+            <div class="widget-value">--</div>
+          </div>
+          <div class="widget" id="sonic-right">
+            <div class="widget-label">Sonic Right</div>
+            <div class="widget-status idle"></div>
+            <div class="widget-value">--</div>
+          </div>
+          <div class="widget" id="ir-left">
+            <div class="widget-label">IR Left</div>
+            <div class="widget-status idle"></div>
+            <div class="widget-value">--</div>
+          </div>
+          <div class="widget" id="ir-right">
+            <div class="widget-label">IR Right</div>
+            <div class="widget-status idle"></div>
+            <div class="widget-value">--</div>
+          </div>
+          <div class="widget" id="lidar">
+            <div class="widget-label">Lidar</div>
+            <div class="widget-status idle"></div>
+            <div class="widget-value">--</div>
+          </div>
+          <div class="widget" id="battery">
+            <div class="widget-label">Battery</div>
+            <div class="widget-status idle"></div>
+            <div class="widget-value">--</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="widgets-section">
+        <div class="widget-title">Subsystem Status</div>
+        <div class="widgets-container" id="subsystem-widgets">
+          <div class="widget" id="extender">
+            <div class="widget-label">Extender</div>
+            <div class="widget-status idle"></div>
+            <div class="widget-value">--</div>
+          </div>
+          <div class="widget" id="elevator">
+            <div class="widget-label">Elevator</div>
+            <div class="widget-status idle"></div>
+            <div class="widget-value">--</div>
+          </div>
+          <div class="widget" id="gripper">
+            <div class="widget-label">Gripper</div>
+            <div class="widget-status idle"></div>
+            <div class="widget-value">--</div>
+          </div>
+          <div class="widget" id="arm">
+            <div class="widget-label">Arm</div>
+            <div class="widget-status idle"></div>
+            <div class="widget-value">--</div>
+          </div>
+          <div class="widget" id="vision">
+            <div class="widget-label">Vision</div>
+            <div class="widget-status idle"></div>
+            <div class="widget-value">--</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

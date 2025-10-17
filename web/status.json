@@ -1,0 +1,17 @@
+{
+  "timestamp": "2025-10-15T03:00:00Z",
+  "USSensorLeft": 45.2,
+  "USSensorRight": 38.7,
+  "IRSensorLeft": 12.3,
+  "IRSensorRight": 15.8,
+  "lidarDistance": 234.5,
+  "lidarStatus": "ok",
+  "extenderStatus": "idle",
+  "extenderLength": 0,
+  "elevatorPosition": 125,
+  "gripperStatus": "closed",
+  "carriagePosition": "home",
+  "lineFollowerSensor": "on line",
+  "batteryVoltage": 12.4,
+  "batteryStatus": "ok"
+}
