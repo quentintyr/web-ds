@@ -121,12 +121,7 @@ class FRCDriverStation {
     }
     
     updateModeButtons(currentMode) {
-        // Remove active class from all mode buttons
-        document.querySelectorAll('.btn-mode').forEach(btn => {
-            btn.classList.remove('active');
-        });
-        
-        // Add active class to current mode
+        // Map server mode values to button IDs
         const modeButtons = {
             0: 'test-btn',
             1: 'auto-btn',
@@ -134,7 +129,15 @@ class FRCDriverStation {
         };
         
         const activeButtonId = modeButtons[currentMode];
+        
+        // Only update if we have a valid mode from server
         if (activeButtonId) {
+            // Remove active class from all mode buttons
+            document.querySelectorAll('.btn-mode').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Add active class to current mode
             const activeButton = document.getElementById(activeButtonId);
             if (activeButton) {
                 activeButton.classList.add('active');
@@ -366,6 +369,16 @@ class FRCDriverStation {
     
     async setMode(mode) {
         try {
+            // First disable the robot if it's currently enabled
+            const currentStatus = await this.makeRequest('status');
+            if (currentStatus && currentStatus.enabled) {
+                console.log('🔴 Auto-disabling robot before mode change...');
+                await this.makeRequest('disable');
+                // Small delay to ensure disable is processed
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            
+            // Then set the new mode
             const result = await this.makeRequest(mode);
             console.log(`🎮 Mode set to ${mode}`);
             return result;
