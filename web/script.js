@@ -25,8 +25,11 @@ class FRCDriverStation {
         // Start status updates
         this.startStatusUpdates();
         
-        // Start robot data updates  
-        this.startRobotDataUpdates();
+    // Start robot data updates  
+    this.startRobotDataUpdates();
+
+    // Connect to websocket for real-time updates
+    this.connectWebSocket();
         
         // Setup keyboard shortcuts
         this.setupKeyboardShortcuts();
@@ -180,8 +183,97 @@ class FRCDriverStation {
         this.fetchLogs();
         
         // Set up periodic updates
-        setInterval(() => this.fetchRobotData(), 1000);  // Update data every second
-        setInterval(() => this.fetchLogs(), 2000);       // Update logs every 2 seconds
+        setInterval(() => this.fetchRobotData(), 1000);  // Update data every second (fallback)
+        setInterval(() => this.fetchLogs(), 2000);       // Update logs every 2 seconds (fallback)
+    }
+
+    connectWebSocket() {
+        // Connect to server websocket
+        try {
+            const loc = window.location;
+            const wsProtocol = loc.protocol === 'https:' ? 'wss' : 'ws';
+            const wsUrl = `${wsProtocol}://${loc.hostname}:8765`;
+            this.ws = new WebSocket(wsUrl);
+
+            this.ws.onopen = () => {
+                console.log('🔌 WebSocket connected');
+                this.updateConnectionStatus(true);
+            };
+
+            this.ws.onmessage = (evt) => {
+                try {
+                    const msg = JSON.parse(evt.data);
+                    switch (msg.type) {
+                        case 'status_init':
+                            this.updateDashboard(msg.data);
+                            break;
+                        case 'status':
+                            // Dashboard update for single key
+                            const data = {};
+                            data[msg.key] = msg.value;
+                            this.updateDashboard(data);
+                            break;
+                                case 'log_init':
+                                    this._applyLogLines(msg.data);
+                            break;
+                                case 'log':
+                                    this._appendLogLine(msg.line, msg.format);
+                            break;
+                    }
+                } catch (e) {
+                    console.error('Bad WebSocket message', e);
+                }
+            };
+
+            this.ws.onclose = () => {
+                console.log('🔌 WebSocket disconnected');
+                this.updateConnectionStatus(false);
+                // try to reconnect
+                setTimeout(() => this.connectWebSocket(), 2000);
+            };
+
+            this.ws.onerror = (err) => {
+                console.error('WebSocket error', err);
+                this.ws.close();
+            };
+        } catch (e) {
+            console.error('Failed to connect WebSocket', e);
+        }
+    }
+
+    _applyLogLines(lines) {
+        const logContainer = document.getElementById('robot-log');
+        if (!logContainer) return;
+        // Always render each log line as a <div class="log-line">, never <br>
+        const fragment = document.createDocumentFragment();
+        for (const l of lines) {
+            const el = document.createElement('div');
+            el.className = 'log-line';
+            // Detect if line is HTML or plain text
+            if (/<span|<br|<div|<p/.test(l)) {
+                el.innerHTML = l;
+            } else {
+                el.innerHTML = this.convertAnsiToHtml(l);
+            }
+            fragment.appendChild(el);
+        }
+        logContainer.innerHTML = '';
+        logContainer.appendChild(fragment);
+        logContainer.scrollTop = logContainer.scrollHeight;
+    }
+
+    _appendLogLine(line, format) {
+        const logContainer = document.getElementById('robot-log');
+        if (!logContainer) return;
+        const el = document.createElement('div');
+        el.className = 'log-line';
+        if (format === 'html' || /<span|<br|<div|<p/.test(line)) {
+            el.innerHTML = line;
+        } else {
+            el.innerHTML = this.convertAnsiToHtml(line);
+        }
+        logContainer.appendChild(el);
+        logContainer.scrollTop = logContainer.scrollHeight;
     }
     
     async fetchRobotData() {
@@ -275,12 +367,18 @@ class FRCDriverStation {
             
             const logContainer = document.getElementById('robot-log');
             if (logContainer) {
-                // Convert ANSI color codes to HTML
-                const htmlContent = this.convertAnsiToHtml(data);
-                logContainer.innerHTML = htmlContent;
-                
-                // Auto-scroll to bottom
+                // Convert ANSI color codes to HTML and render each line as a separate node
+                const lines = data.split(/\r?\n/);
                 const wasAtBottom = logContainer.scrollHeight - logContainer.scrollTop <= logContainer.clientHeight + 5;
+                const fragment = document.createDocumentFragment();
+                for (const line of lines) {
+                    const el = document.createElement('div');
+                    el.className = 'log-line';
+                    el.innerHTML = this.convertAnsiToHtml(line);
+                    fragment.appendChild(el);
+                }
+                logContainer.innerHTML = '';
+                logContainer.appendChild(fragment);
                 if (wasAtBottom) {
                     logContainer.scrollTop = logContainer.scrollHeight;
                 }
