@@ -1,0 +1,12 @@
+[Unit]
+Description=frc-webserver
+After=network.target
+
+[Service]
+User=pi
+WorkingDirectory=/home/lvuser/deploy/web-ds/python
+ExecStart=/usr/bin/python3 ds_server.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
