@@ -12,11 +12,18 @@ import os
 import time
 import sys
 from pathlib import Path
+import threading
+import asyncio
+import websockets
+from networktables import NetworkTables
 
 # Add python directory to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
 
 from frc_protocol import get_driver_station
+
+DEFAULT_TEAM_NUMBER = int(os.environ.get('TEAM_NUMBER', '1234'))
+
 
 class FRCDriverStationHandler(http.server.SimpleHTTPRequestHandler):
     """HTTP request handler for FRC Driver Station web interface"""
@@ -46,11 +53,11 @@ class FRCDriverStationHandler(http.server.SimpleHTTPRequestHandler):
         web_dir = os.path.join(os.path.dirname(__file__), '..', 'web')
         self.web_root = os.path.abspath(web_dir)
         
-        # Configure team number - CHANGE THIS TO YOUR TEAM NUMBER  
-        TEAM_NUMBER = 1234  # Matches your network IP 10.12.34.2
+        # Configure team number - can be overridden with TEAM_NUMBER env var
+        TEAM_NUMBER = DEFAULT_TEAM_NUMBER
         print(f"🔧 Setting team number to: {TEAM_NUMBER}")
         self.ds.set_team_number(TEAM_NUMBER)
-        
+
         super().__init__(*args, directory=self.web_root, **kwargs)
     
     def log_message(self, format, *args):
@@ -68,7 +75,7 @@ class FRCDriverStationHandler(http.server.SimpleHTTPRequestHandler):
         elif parsed_path.path == '/api/ds/status':
             self._send_json_response(self.ds.get_status())
         elif parsed_path.path == '/status.json':
-            self._serve_robot_status()
+            self._send_json_response(ServerState.get_status())
         elif parsed_path.path == '/robot.log':
             self._serve_robot_log()
         else:
@@ -209,13 +216,17 @@ class FRCDriverStationHandler(http.server.SimpleHTTPRequestHandler):
             super().send_error(500, "Internal server error")
     
     def _serve_robot_status(self):
-        """Serve robot status JSON from /home/lvuser/deploy/status.json"""
+        """Serve robot status JSON from the in-memory ServerState or fallback file"""
         status_file = '/home/lvuser/deploy/status.json'
         
         try:
-            if os.path.exists(status_file):
-                with open(status_file, 'r') as f:
-                    content = f.read().strip()
+            # Prefer in-memory status if available
+            content = ServerState.get_status_json()
+            if content is None:
+                # Fallback to file if it exists
+                if os.path.exists(status_file):
+                    with open(status_file, 'r') as f:
+                        content = f.read().strip()
                 
                 # Check if file is empty or invalid JSON
                 if not content or content == '':
@@ -235,8 +246,8 @@ class FRCDriverStationHandler(http.server.SimpleHTTPRequestHandler):
                 self.end_headers()
                 
                 self.wfile.write(content.encode('utf-8'))
-            else:
-                # Send default status if file doesn't exist
+            if not content or content == '':
+                # Send default status if we have nothing
                 default_status = self._get_default_robot_status()
                 
                 self.send_response(200)
@@ -257,30 +268,24 @@ class FRCDriverStationHandler(http.server.SimpleHTTPRequestHandler):
         log_file = '/home/lvuser/deploy/robot.log'
         
         try:
-            if os.path.exists(log_file):
+            # Prefer in-memory logs first
+            content = ServerState.get_log_text()
+            if content is None and os.path.exists(log_file):
                 with open(log_file, 'r') as f:
                     content = f.read()
-                
-                self.send_response(200)
-                self.send_header('Content-Type', 'text/plain')
-                self.send_header('Content-Length', str(len(content)))
-                self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
-                self.send_header('Access-Control-Allow-Origin', '*')
-                self.end_headers()
-                
-                self.wfile.write(content.encode('utf-8'))
-            else:
-                # Send default message if log file doesn't exist
+
+            if content is None:
                 default_log = f"Robot log not found at {log_file}\nWaiting for robot data..."
-                
-                self.send_response(200)
-                self.send_header('Content-Type', 'text/plain')
-                self.send_header('Content-Length', str(len(default_log)))
-                self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
-                self.send_header('Access-Control-Allow-Origin', '*')
-                self.end_headers()
-                
-                self.wfile.write(default_log.encode('utf-8'))
+                content = default_log
+
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/plain')
+            self.send_header('Content-Length', str(len(content)))
+            self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+
+            self.wfile.write(content.encode('utf-8'))
                 
         except Exception as e:
             self.log_message(f"❌ Error serving robot log: {e}")
@@ -322,6 +327,148 @@ class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     allow_reuse_address = True
     daemon_threads = True
 
+
+class ServerState:
+    """Holds in-memory robot status and logs, subscribes to NetworkTables, and broadcasts updates to websockets."""
+    _status = None
+    _log_lines = []
+    _log_lock = threading.Lock()
+    _clients = set()
+    _nt_initialized = False
+    _ws_loop = None
+
+    @classmethod
+    def init_networktables(cls, server_ip: str = None):
+        if cls._nt_initialized:
+            return
+        if server_ip is None:
+            # Default to local robot address as in ds_server: 10.1234.2 or from config
+            server_ip = None
+        try:
+            if server_ip:
+                print(f"🔗 Initializing NetworkTables: connecting to {server_ip}")
+                NetworkTables.initialize(server=server_ip)
+            else:
+                print("🔗 Initializing NetworkTables with default discovery")
+                NetworkTables.initialize()
+
+            # Subscribe to a few keys by default
+            cls._subscribe_tables()
+            cls._nt_initialized = True
+        except Exception as e:
+            print(f"❌ Failed to init NetworkTables: {e}")
+
+    @classmethod
+    def _subscribe_tables(cls):
+        def log_listener(*args):
+            try:
+                _, key, value = args[:3]
+            except Exception:
+                return
+            try:
+                print(f"📥 Logs listener: key={key} value={value}")
+                with cls._log_lock:
+                    cls._log_lines.append(str(value))
+                    cls._log_lines = cls._log_lines[-500:]
+                if cls._ws_loop:
+                    fmt = 'html' if '<' in str(value) else 'ansi'
+                    asyncio.run_coroutine_threadsafe(cls._broadcast({'type': 'log', 'line': value, 'format': fmt}), cls._ws_loop)
+            except Exception as e:
+                print(f"❌ Log listener error: {e}")
+
+        def status_listener(*args):
+            try:
+                _, key, value = args[:3]
+            except Exception:
+                return
+            try:
+                print(f"📥 Dashboard listener: key={key} value={value}")
+                if cls._status is None:
+                    cls._status = {}
+                cls._status[key] = value
+                if cls._ws_loop:
+                    asyncio.run_coroutine_threadsafe(cls._broadcast({'type': 'status', 'table': 'Dashboard', 'key': key, 'value': value}), cls._ws_loop)
+            except Exception as e:
+                print(f"❌ Status listener error: {e}")
+
+        # Use an explicit call to add entry listeners per known table
+        try:
+            logs = NetworkTables.getTable('Logs')
+            logs.addEntryListener(log_listener)
+            print("🔗 Subscribed to Logs table (NetworkTables)")
+        except Exception:
+            pass
+
+        # Generic subscription — listen to Dashboard table too
+        try:
+            dash = NetworkTables.getTable('Dashboard')
+            dash.addEntryListener(status_listener)
+            print("🔗 Subscribed to Dashboard table (NetworkTables)")
+        except Exception:
+            pass
+
+    @classmethod
+    async def _broadcast(cls, message: dict):
+        data = json.dumps(message)
+        to_remove = []
+        for ws in list(cls._clients):
+            try:
+                await ws.send(data)
+            except Exception:
+                to_remove.append(ws)
+        for ws in to_remove:
+            cls._clients.discard(ws)
+
+    @classmethod
+    def get_status_json(cls):
+        if cls._status is None:
+            return None
+        return json.dumps(cls._status)
+
+    @classmethod
+    def get_status(cls):
+        return cls._status if cls._status is not None else {}
+
+    @classmethod
+    def get_log_text(cls):
+        with cls._log_lock:
+            if not cls._log_lines:
+                return None
+            return "\n".join(cls._log_lines)
+
+    @classmethod
+    async def websocket_handler(cls, websocket, path=None):
+        cls._clients.add(websocket)
+        print(f"🔌 WebSocket client connected ({len(cls._clients)} total)")
+        try:
+            # Send initial status and recent logs
+            if cls._status:
+                await websocket.send(json.dumps({'type': 'status_init', 'data': cls._status}))
+            with cls._log_lock:
+                if cls._log_lines:
+                    await websocket.send(json.dumps({'type': 'log_init', 'data': cls._log_lines}))
+
+            async for msg in websocket:
+                # accept ping or commands from client if needed
+                pass
+        except Exception as e:
+            print(f"WebSocket error: {e}")
+        finally:
+            cls._clients.discard(websocket)
+            print(f"🔌 WebSocket client disconnected ({len(cls._clients)} total)")
+
+    @classmethod
+    def start_websocket_server(cls, host='0.0.0.0', port=8765):
+        async def _ws_main():
+            # Store the running loop so other threads can schedule broadcasts
+            cls._ws_loop = asyncio.get_running_loop()
+            async with websockets.serve(cls.websocket_handler, host, port):
+                print(f"🌐 WebSocket server running on ws://{host}:{port}")
+                await asyncio.Future()  # run forever
+
+        # Run the websocket server in this thread using asyncio.run
+        asyncio.run(_ws_main())
+
 def main():
     """Main server startup"""
     PORT = 8080
@@ -336,6 +483,17 @@ def main():
         print(f"   Expected at: {web_dir}")
         sys.exit(1)
     
+    # Initialize NetworkTables client in background (connect directly to robot IP)
+    def team_to_ip(team: int) -> str:
+        return f"10.{team // 100}.{team % 100}.2"
+
+    server_ip = team_to_ip(DEFAULT_TEAM_NUMBER)
+    ServerState.init_networktables(server_ip)
+
+    # Start websocket broadcaster thread
+    ws_thread = threading.Thread(target=ServerState.start_websocket_server, daemon=True)
+    ws_thread.start()
+
     try:
         # Start the server
         with ThreadedTCPServer(("", PORT), FRCDriverStationHandler) as httpd:
