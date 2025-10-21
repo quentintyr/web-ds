@@ -25,11 +25,11 @@ class FRCDriverStation {
         // Start status updates
         this.startStatusUpdates();
         
-    // Start robot data updates  
-    this.startRobotDataUpdates();
+        // Start robot data updates  
+        this.startRobotDataUpdates();
 
-    // Connect to websocket for real-time updates
-    this.connectWebSocket();
+        // Connect to WebSocket for real-time updates
+        this.connectWebSocket();
         
         // Setup keyboard shortcuts
         this.setupKeyboardShortcuts();
@@ -70,15 +70,38 @@ class FRCDriverStation {
     }
     
     displayDriverStationStatus(status) {
+        // Debug: Log the received mode value
+        console.log('📊 Received robot status:', {
+            mode: status.mode,
+            mode_type: typeof status.mode,
+            mode_string: status.mode_string,
+            enabled: status.enabled,
+            connected: status.connected
+        });
+        
         // Update robot mode indicator
         const modeEl = document.getElementById('robot-mode');
         if (modeEl) {
-            const modeNames = {
-                0: 'TEST',
-                1: 'AUTONOMOUS',
-                2: 'TELEOP'
-            };
-            const modeName = modeNames[status.mode] || 'UNKNOWN';
+            // Handle both numeric and string mode values
+            let modeName = 'UNKNOWN';
+            if (typeof status.mode === 'string') {
+                // String mode from FRC protocol
+                const stringModeNames = {
+                    'teleop': 'TELEOP',
+                    'autonomous': 'AUTONOMOUS', 
+                    'test': 'TEST'
+                };
+                modeName = stringModeNames[status.mode.toLowerCase()] || 'UNKNOWN';
+            } else {
+                // Numeric mode (legacy)
+                const numericModeNames = {
+                    0: 'TEST',
+                    1: 'AUTONOMOUS',
+                    2: 'TELEOP'
+                };
+                modeName = numericModeNames[status.mode] || 'UNKNOWN';
+            }
+            
             modeEl.textContent = modeName;
             modeEl.className = `mode-indicator ${modeName.toLowerCase()}`;
         }
@@ -103,6 +126,11 @@ class FRCDriverStation {
             can_be_enabled: status.can_be_enabled
         });
         
+        // Update system statistics if available
+        if (status.cpu_percent !== undefined || status.ram_percent !== undefined || status.connected_clients !== undefined) {
+            this.updateSystemStats(status);
+        }
+        
         // Update enable/disable button states
         this.updateControlButtons(status);
     }
@@ -124,27 +152,41 @@ class FRCDriverStation {
     }
     
     updateModeButtons(currentMode) {
-        // Map server mode values to button IDs
-        const modeButtons = {
-            0: 'test-btn',
-            1: 'auto-btn',
-            2: 'teleop-btn'
-        };
+        // Remove active class from all mode buttons
+        document.querySelectorAll('.btn-mode').forEach(btn => {
+            btn.classList.remove('active');
+        });
         
-        const activeButtonId = modeButtons[currentMode];
+        // Handle both string and numeric mode values
+        let activeButtonId = null;
         
-        // Only update if we have a valid mode from server
+        if (typeof currentMode === 'string') {
+            // String mode from FRC protocol
+            const stringModeButtons = {
+                'teleop': 'teleop-btn',
+                'autonomous': 'auto-btn',
+                'test': 'test-btn'
+            };
+            activeButtonId = stringModeButtons[currentMode.toLowerCase()];
+        } else {
+            // Numeric mode (legacy compatibility)
+            const numericModeButtons = {
+                0: 'test-btn',
+                1: 'auto-btn', 
+                2: 'teleop-btn'
+            };
+            activeButtonId = numericModeButtons[currentMode];
+        }
+        
+        // Add active class to current mode button
         if (activeButtonId) {
-            // Remove active class from all mode buttons
-            document.querySelectorAll('.btn-mode').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            
-            // Add active class to current mode
             const activeButton = document.getElementById(activeButtonId);
             if (activeButton) {
                 activeButton.classList.add('active');
+                console.log(`🎮 Mode button activated: ${activeButtonId} (mode: ${currentMode})`);
             }
+        } else {
+            console.warn(`⚠️ Unknown mode value: ${currentMode} (type: ${typeof currentMode})`);
         }
     }
     
@@ -183,97 +225,8 @@ class FRCDriverStation {
         this.fetchLogs();
         
         // Set up periodic updates
-        setInterval(() => this.fetchRobotData(), 1000);  // Update data every second (fallback)
-        setInterval(() => this.fetchLogs(), 2000);       // Update logs every 2 seconds (fallback)
-    }
-
-    connectWebSocket() {
-        // Connect to server websocket
-        try {
-            const loc = window.location;
-            const wsProtocol = loc.protocol === 'https:' ? 'wss' : 'ws';
-            const wsUrl = `${wsProtocol}://${loc.hostname}:8765`;
-            this.ws = new WebSocket(wsUrl);
-
-            this.ws.onopen = () => {
-                console.log('🔌 WebSocket connected');
-                this.updateConnectionStatus(true);
-            };
-
-            this.ws.onmessage = (evt) => {
-                try {
-                    const msg = JSON.parse(evt.data);
-                    switch (msg.type) {
-                        case 'status_init':
-                            this.updateDashboard(msg.data);
-                            break;
-                        case 'status':
-                            // Dashboard update for single key
-                            const data = {};
-                            data[msg.key] = msg.value;
-                            this.updateDashboard(data);
-                            break;
-                                case 'log_init':
-                                    this._applyLogLines(msg.data);
-                            break;
-                                case 'log':
-                                    this._appendLogLine(msg.line, msg.format);
-                            break;
-                    }
-                } catch (e) {
-                    console.error('Bad WebSocket message', e);
-                }
-            };
-
-            this.ws.onclose = () => {
-                console.log('🔌 WebSocket disconnected');
-                this.updateConnectionStatus(false);
-                // try to reconnect
-                setTimeout(() => this.connectWebSocket(), 2000);
-            };
-
-            this.ws.onerror = (err) => {
-                console.error('WebSocket error', err);
-                this.ws.close();
-            };
-        } catch (e) {
-            console.error('Failed to connect WebSocket', e);
-        }
-    }
-
-    _applyLogLines(lines) {
-        const logContainer = document.getElementById('robot-log');
-        if (!logContainer) return;
-        // Always render each log line as a <div class="log-line">, never <br>
-        const fragment = document.createDocumentFragment();
-        for (const l of lines) {
-            const el = document.createElement('div');
-            el.className = 'log-line';
-            // Detect if line is HTML or plain text
-            if (/<span|<br|<div|<p/.test(l)) {
-                el.innerHTML = l;
-            } else {
-                el.innerHTML = this.convertAnsiToHtml(l);
-            }
-            fragment.appendChild(el);
-        }
-        logContainer.innerHTML = '';
-        logContainer.appendChild(fragment);
-        logContainer.scrollTop = logContainer.scrollHeight;
-    }
-
-    _appendLogLine(line, format) {
-        const logContainer = document.getElementById('robot-log');
-        if (!logContainer) return;
-        const el = document.createElement('div');
-        el.className = 'log-line';
-        if (format === 'html' || /<span|<br|<div|<p/.test(line)) {
-            el.innerHTML = line;
-        } else {
-            el.innerHTML = this.convertAnsiToHtml(line);
-        }
-        logContainer.appendChild(el);
-        logContainer.scrollTop = logContainer.scrollHeight;
+        setInterval(() => this.fetchRobotData(), 1000);  // Update data every second
+        setInterval(() => this.fetchLogs(), 2000);       // Update logs every 2 seconds
     }
     
     async fetchRobotData() {
@@ -367,18 +320,12 @@ class FRCDriverStation {
             
             const logContainer = document.getElementById('robot-log');
             if (logContainer) {
-                // Convert ANSI color codes to HTML and render each line as a separate node
-                const lines = data.split(/\r?\n/);
+                // Convert ANSI color codes to HTML
+                const htmlContent = this.convertAnsiToHtml(data);
+                logContainer.innerHTML = htmlContent;
+                
+                // Auto-scroll to bottom
                 const wasAtBottom = logContainer.scrollHeight - logContainer.scrollTop <= logContainer.clientHeight + 5;
-                const fragment = document.createDocumentFragment();
-                for (const line of lines) {
-                    const el = document.createElement('div');
-                    el.className = 'log-line';
-                    el.innerHTML = this.convertAnsiToHtml(line);
-                    fragment.appendChild(el);
-                }
-                logContainer.innerHTML = '';
-                logContainer.appendChild(fragment);
                 if (wasAtBottom) {
                     logContainer.scrollTop = logContainer.scrollHeight;
                 }
@@ -403,6 +350,76 @@ class FRCDriverStation {
             .replace(/\[36m/g, '<span class="log-thread">')     // Cyan
             .replace(/\[0m/g, '</span>')                        // Reset
             .replace(/\n/g, '<br>');
+    }
+
+    // === WebSocket Connection ===
+
+    connectWebSocket() {
+        try {
+            const loc = window.location;
+            const wsProtocol = loc.protocol === 'https:' ? 'wss' : 'ws';
+            const wsUrl = `${wsProtocol}://${loc.hostname}:8765`;
+            this.ws = new WebSocket(wsUrl);
+
+            this.ws.onopen = () => {
+                console.log('🔌 WebSocket connected for system monitoring');
+            };
+
+            this.ws.onmessage = (evt) => {
+                try {
+                    const msg = JSON.parse(evt.data);
+                    if (msg.type === 'system_stats' && msg.data) {
+                        this.updateSystemStats(msg.data);
+                    } else if (msg.type === 'log' && msg.line) {
+                        // Handle individual log lines if needed
+                        console.log('📥 Log:', msg.line);
+                    }
+                } catch (e) {
+                    console.error('WebSocket message error:', e);
+                }
+            };
+
+            this.ws.onclose = () => {
+                console.log('🔌 WebSocket disconnected, attempting to reconnect...');
+                setTimeout(() => this.connectWebSocket(), 3000);
+            };
+
+            this.ws.onerror = (err) => {
+                console.error('WebSocket error:', err);
+            };
+
+        } catch (e) {
+            console.error('Failed to connect WebSocket:', e);
+            setTimeout(() => this.connectWebSocket(), 5000);
+        }
+    }
+
+    updateSystemStats(stats) {
+        console.log('📊 System Stats Update:', stats);
+        
+        // Update CPU widget
+        if (stats.cpu_percent !== undefined) {
+            let cpuStatus = 'ok';
+            if (stats.cpu_percent > 80) cpuStatus = 'error';
+            else if (stats.cpu_percent > 60) cpuStatus = 'busy';
+            updateWidget('cpu', cpuStatus, `${stats.cpu_percent}%`);
+        }
+        
+        // Update RAM widget
+        if (stats.ram_percent !== undefined) {
+            let ramStatus = 'ok';
+            if (stats.ram_percent > 85) ramStatus = 'error';
+            else if (stats.ram_percent > 70) ramStatus = 'busy';
+            updateWidget('ram', ramStatus, `${stats.ram_percent}%`);
+        }
+        
+        // Update connected clients widget
+        if (stats.connected_clients !== undefined) {
+            let clientStatus = 'idle';
+            if (stats.connected_clients > 0) clientStatus = 'ok';
+            if (stats.connected_clients > 3) clientStatus = 'busy';
+            updateWidget('clients', clientStatus, stats.connected_clients);
+        }
     }
     
     // === Robot Control Methods ===
@@ -467,16 +484,6 @@ class FRCDriverStation {
     
     async setMode(mode) {
         try {
-            // First disable the robot if it's currently enabled
-            const currentStatus = await this.makeRequest('status');
-            if (currentStatus && currentStatus.enabled) {
-                console.log('🔴 Auto-disabling robot before mode change...');
-                await this.makeRequest('disable');
-                // Small delay to ensure disable is processed
-                await new Promise(resolve => setTimeout(resolve, 100));
-            }
-            
-            // Then set the new mode
             const result = await this.makeRequest(mode);
             console.log(`🎮 Mode set to ${mode}`);
             return result;
