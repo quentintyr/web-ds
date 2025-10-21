@@ -1,0 +1,3 @@
+# ignore pycache
+python/server/__pycache__
+python/__pycache__
