@@ -132,14 +132,14 @@ class FRCDriverStation:
             self._send_thread.start()
             self._recv_thread.start()
             
-            self.logger.info(f"🤖 FRC Driver Station started")
-            self.logger.info(f"📡 Target robot: {self.robot_address}:{self.DS_TO_ROBOT_PORT}")
-            self.logger.info(f"⏱️  Packet interval: {self.PACKET_INTERVAL*1000:.0f}ms")
+            self.logger.info(f"FRC Driver Station started")
+            self.logger.info(f"Target robot: {self.robot_address}:{self.DS_TO_ROBOT_PORT}")
+            self.logger.info(f"Packet interval: {self.PACKET_INTERVAL*1000:.0f}ms")
             
             return True
             
         except Exception as e:
-            self.logger.error(f"❌ Failed to start driver station: {e}")
+            self.logger.error(f"Failed to start driver station: {e}")
             return False
     
     def stop(self):
@@ -155,7 +155,7 @@ class FRCDriverStation:
             self._socket.close()
             self._socket = None
             
-        self.logger.info("🛑 FRC Driver Station stopped")
+        self.logger.info("FRC Driver Station stopped")
     
     def _send_loop(self):
         """Main packet sending loop - runs every 20ms"""
@@ -190,7 +190,7 @@ class FRCDriverStation:
                 continue
             except Exception as e:
                 if self._running:  # Only log if we're supposed to be running
-                    self.logger.error(f"❌ Receive error: {e}")
+                    self.logger.error(f"Receive error: {e}")
                 time.sleep(0.01)
     
     def _send_robot_packet(self):
@@ -208,10 +208,10 @@ class FRCDriverStation:
             
             # Log occasionally for debugging
             if self._sent_packets % 250 == 0:  # Every 5 seconds
-                self.logger.debug(f"📤 Sent {self._sent_packets} packets to robot")
+                self.logger.debug(f"Sent {self._sent_packets} packets to robot")
                 
         except Exception as e:
-            self.logger.error(f"❌ Send error: {e}")
+            self.logger.error(f"Send error: {e}")
     
     def _build_robot_packet(self) -> bytes:
         """
@@ -298,8 +298,8 @@ class FRCDriverStation:
             
             # Log connection state changes
             if not old_connected:
-                self.logger.info(f"✅ Robot connected at {self.robot_address}")
-                self.logger.info(f"⚡ Voltage: {voltage:.1f}V, Code: {'✅' if code_present else '❌'}")
+                self.logger.info(f"Robot connected at {self.robot_address}")
+                self.logger.info(f"Voltage: {voltage:.1f}V, Code: {'✅' if code_present else '❌'}")
             
             # Process extended data if present
             if len(data) > 9:
@@ -313,7 +313,7 @@ class FRCDriverStation:
                     self.logger.error(f"Status callback error: {e}")
                     
         except Exception as e:
-            self.logger.error(f"❌ Error processing robot response: {e}")
+            self.logger.error(f"Error processing robot response: {e}")
     
     def _parse_extended_data(self, data: bytes):
         """Parse extended robot status (CPU, RAM, CAN, etc.)"""
@@ -323,7 +323,7 @@ class FRCDriverStation:
     
     def _handle_communication_lost(self):
         """Handle loss of communication with robot"""
-        self.logger.warning(f"📡 Lost communication with robot")
+        self.logger.warning(f"Lost communication with robot")
         
         # Reset robot state to safe defaults
         old_connected = self.status.connected
@@ -349,68 +349,68 @@ class FRCDriverStation:
         """Set team number and update robot address"""
         self.team_number = team_number
         self.robot_address = f"10.{team_number//100}.{team_number%100}.2"
-        self.logger.info(f"🔧 Team number set to {team_number}, robot at {self.robot_address}")
+        self.logger.info(f"Team number set to {team_number}, robot at {self.robot_address}")
         return True
     
     def set_robot_address(self, address: str) -> bool:
         """Set custom robot IP address"""
         self.robot_address = address
-        self.logger.info(f"🔧 Robot address set to {address}")
+        self.logger.info(f"Robot address set to {address}")
         return True
     
     def enable_robot(self) -> bool:
         """Enable the robot (if conditions are met)"""
         if not self.status.connected:
-            self.logger.warning("⚠️ Cannot enable robot - no communication")
+            self.logger.warning("Cannot enable robot - no communication")
             return False
             
         if not self.status.code_present:
-            self.logger.warning("⚠️ Cannot enable robot - no robot code detected")
+            self.logger.warning("Cannot enable robot - no robot code detected")
             return False
             
         if self.status.emergency_stopped:
-            self.logger.warning("⚠️ Cannot enable robot - emergency stopped")
+            self.logger.warning("Cannot enable robot - emergency stopped")
             return False
         
         self._enabled = True
-        self.logger.info(f"✅ Robot enabled in {self._mode.name} mode")
+        self.logger.info(f"Robot enabled in {self._mode.name} mode")
         return True
     
     def disable_robot(self) -> bool:
         """Disable the robot"""
         self._enabled = False
-        self.logger.info("🛑 Robot disabled")
+        self.logger.info("Robot disabled")
         return True
     
     def set_teleop_mode(self) -> bool:
         """Set robot to teleoperated mode"""
         self._mode = ControlMode.TELEOP
-        self.logger.info("🎮 Mode: Teleoperated")
+        self.logger.info("Mode: Teleoperated")
         return True
     
     def set_autonomous_mode(self) -> bool:
         """Set robot to autonomous mode"""
         self._mode = ControlMode.AUTONOMOUS
-        self.logger.info("🤖 Mode: Autonomous")
+        self.logger.info("Mode: Autonomous")
         return True
     
     def set_test_mode(self) -> bool:
         """Set robot to test mode"""
         self._mode = ControlMode.TEST
-        self.logger.info("🔧 Mode: Test")
+        self.logger.info("Mode: Test")
         return True
     
     def emergency_stop(self) -> bool:
         """Emergency stop the robot"""
         self._emergency_stopped = True
         self._enabled = False
-        self.logger.warning("🚨 EMERGENCY STOP")
+        self.logger.warning("EMERGENCY STOP")
         return True
     
     def clear_emergency_stop(self) -> bool:
         """Clear emergency stop"""
         self._emergency_stopped = False
-        self.logger.info("✅ Emergency stop cleared")
+        self.logger.info("Emergency stop cleared")
         return True
     
     def get_status(self) -> Dict[str, Any]:
@@ -468,7 +468,7 @@ if __name__ == "__main__":
     import sys
     
     def signal_handler(sig, frame):
-        print("\n🛑 Shutting down...")
+        print("\nShutting down...")
         ds.stop()
         sys.exit(0)
     
@@ -480,7 +480,7 @@ if __name__ == "__main__":
     # Add status callback for debugging
     def status_callback(status: RobotStatus):
         if status.connected:
-            print(f"📊 Robot: Enabled={status.enabled}, "
+            print(f"Robot: Enabled={status.enabled}, "
                   f"Voltage={status.voltage:.1f}V, "
                   f"Code={'✅' if status.code_present else '❌'}")
     
@@ -488,7 +488,7 @@ if __name__ == "__main__":
     
     # Start communication
     if ds.start():
-        print("🤖 Driver Station running. Press Ctrl+C to stop.")
+        print("Driver Station running. Press Ctrl+C to stop.")
         print("Testing enable/disable every 5 seconds...")
         
         # Test enable/disable cycle
@@ -503,6 +503,6 @@ if __name__ == "__main__":
         except KeyboardInterrupt:
             pass
     else:
-        print("❌ Failed to start driver station")
+        print("Failed to start driver station")
     
     ds.stop()
