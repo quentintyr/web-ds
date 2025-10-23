@@ -32,6 +32,9 @@ class FRCDriverStationHandler(http.server.SimpleHTTPRequestHandler):
     def set_websocket_server(cls, websocket_server):
         """Set the WebSocket server instance"""
         cls._websocket_server = websocket_server
+        # Link driver station to websocket server for joystick updates
+        if cls._driver_station and websocket_server:
+            websocket_server.driver_station = cls._driver_station
     
     @classmethod
     def get_driver_station(cls):

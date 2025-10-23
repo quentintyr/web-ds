@@ -89,6 +89,10 @@ class FRCDriverStation:
         # Packet counters (must increment every packet)
         self._sent_packets = 0
         
+        # Joystick data storage (matches LibDS structure)
+        self._joysticks = []  # List of joystick dictionaries
+        self._joystick_lock = threading.Lock()
+        
         # Communication
         self._socket: Optional[socket.socket] = None
         self._running = False
@@ -217,12 +221,13 @@ class FRCDriverStation:
         """
         Build robot control packet matching LibDS FRC protocol
         
-        Packet format (minimum 6 bytes):
+        Packet format (minimum 6 bytes + joystick data):
         [0-1] Packet sequence number (big-endian uint16)
         [2]   Protocol version tag (0x01)
         [3]   Control code (mode + enable + emergency stop bits)
         [4]   Request code (restart/reboot flags)
         [5]   Station code (alliance + position)
+        [6+]  Joystick data (if packet_count > 5)
         
         Returns:
             Packet bytes
@@ -239,7 +244,7 @@ class FRCDriverStation:
         if self._emergency_stopped:
             control_code |= ControlBits.EMERGENCY_STOP
         
-        # Build packet
+        # Build base packet (6 bytes)
         packet = struct.pack('>H',     # Packet number (big-endian uint16)
                            self._sent_packets & 0xFFFF)
         packet += struct.pack('B',     # Protocol version
@@ -250,6 +255,12 @@ class FRCDriverStation:
                             RequestCode.NORMAL)
         packet += struct.pack('B',     # Station code (Red Alliance, Position 1)
                             StationCode.RED1)
+        
+        # Add joystick data after initial connection (packet > 5)
+        # This matches LibDS behavior - wait a few packets before sending joystick data
+        if self._sent_packets > 5:
+            joystick_bytes = self._encode_joystick_data()
+            packet += joystick_bytes
         
         return packet
     
@@ -454,6 +465,106 @@ class FRCDriverStation:
     def is_connected(self) -> bool:
         """Check if robot is connected"""
         return self.status.connected
+    
+    # === Joystick Management (LibDS-compatible) ===
+    
+    def update_joysticks(self, joystick_data: list):
+        """
+        Update joystick data from web client
+        
+        Args:
+            joystick_data: List of joystick dictionaries with 'axes', 'buttons', 'povs'
+        """
+        with self._joystick_lock:
+            self._joysticks = joystick_data
+    
+    def _encode_joystick_data(self) -> bytes:
+        """
+        Encode joystick data into FRC 2020 protocol format
+        
+        Format for each joystick:
+        [0]    Size (total bytes for this joystick)
+        [1]    Tag (0x0c = joystick)
+        [2]    Num axes
+        [3+]   Axis values (each as signed byte -128 to +127)
+        [N]    Num buttons
+        [N+1]  Button high byte
+        [N+2]  Button low byte
+        [N+3]  Num POVs
+        [N+4+] POV angles (each as 16-bit big-endian)
+        
+        Returns:
+            Encoded joystick bytes
+        """
+        packet = bytearray()
+        
+        with self._joystick_lock:
+            for joystick in self._joysticks:
+                js_bytes = bytearray()
+                
+                # Tag (0x0c = joystick tag)
+                js_bytes.append(0x0c)
+                
+                # Axes
+                axes = joystick.get('axes', [])
+                js_bytes.append(len(axes))
+                for axis_value in axes:
+                    # Convert float (-1.0 to +1.0) to signed byte (-128 to +127)
+                    byte_value = self._float_to_byte(axis_value)
+                    js_bytes.append(byte_value)
+                
+                # Buttons (packed into 16-bit bitfield)
+                buttons = joystick.get('buttons', [])
+                num_buttons = len(buttons)
+                js_bytes.append(num_buttons)
+                
+                # Pack buttons into 16-bit value
+                button_flags = 0
+                for i, pressed in enumerate(buttons):
+                    if pressed:
+                        button_flags |= (1 << i)
+                
+                # Split into 2 bytes (big-endian)
+                js_bytes.append((button_flags >> 8) & 0xFF)  # High byte
+                js_bytes.append(button_flags & 0xFF)          # Low byte
+                
+                # POVs (16-bit angles)
+                povs = joystick.get('povs', [0])
+                js_bytes.append(len(povs))
+                for pov_angle in povs:
+                    # POV angle as 16-bit value (big-endian)
+                    js_bytes.append((pov_angle >> 8) & 0xFF)  # High byte
+                    js_bytes.append(pov_angle & 0xFF)          # Low byte
+                
+                # Prepend size byte (total bytes for this joystick)
+                size = len(js_bytes) + 1  # +1 for size byte itself
+                packet.append(size)
+                packet.extend(js_bytes)
+        
+        return bytes(packet)
+    
+    def _float_to_byte(self, value: float) -> int:
+        """
+        Convert float (-1.0 to +1.0) to signed byte (-128 to +127)
+        Matches LibDS DS_FloatToByte function
+        
+        Args:
+            value: Float value between -1.0 and +1.0
+            
+        Returns:
+            Signed byte as unsigned int (0-255)
+        """
+        # Scale to -128 to +127
+        result = int(round(value * 127))
+        
+        # Clamp to valid range
+        if result > 127:
+            result = 127
+        elif result < -128:
+            result = -128
+        
+        # Convert signed to unsigned byte representation
+        return result & 0xFF
 
 # Factory function for compatibility
 def get_driver_station(team_number: int = 1234) -> FRCDriverStation:

@@ -10,10 +10,16 @@ class FRCDriverStation {
         this.retryCount = 0;
         this.maxRetries = 5;
         this.ws = null;
+        
+        // Joystick manager
+        this.joystickManager = null;
     }
     
     init() {
         console.log('🚀 Initializing FRC Web Driver Station & Dashboard');
+        
+        // Initialize joystick manager
+        this.initJoystickManager();
         
         // Start status updates
         this.startStatusUpdates();
@@ -28,6 +34,60 @@ class FRCDriverStation {
         this.setupKeyboardShortcuts();
         
         console.log('✅ Driver Station initialized');
+    }
+    
+    // === Joystick Manager ===
+    
+    initJoystickManager() {
+        this.joystickManager = new JoystickManager();
+        
+        // Enable virtual joystick by default
+        this.joystickManager.setVirtualJoystickEnabled(true);
+        
+        // Setup joystick update callback to send data via WebSocket
+        this.joystickManager.onJoystickUpdate = (data) => {
+            this.sendJoystickData(data);
+        };
+        
+        // Setup joystick count change callback
+        this.joystickManager.onJoystickCountChanged = (count) => {
+            console.log(`🎮 Joystick count changed: ${count}`);
+            this.updateJoystickUI();
+        };
+        
+        // Create visual UI for joysticks
+        if (typeof JoystickUI !== 'undefined') {
+            this.joystickUI = new JoystickUI(this.joystickManager);
+            this.joystickUI.init();
+            console.log('✅ Joystick UI initialized (Press J to toggle)');
+        }
+        
+        console.log('✅ Joystick Manager initialized');
+        console.log('   Virtual Joystick: ENABLED (use WASD, IJKL, Arrow keys, 0-9)');
+        console.log('   Physical Joysticks: Connect USB controllers to use');
+    }
+    
+    sendJoystickData(joystickData) {
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            try {
+                const message = {
+                    type: 'joystick_update',
+                    joysticks: joystickData
+                };
+                this.ws.send(JSON.stringify(message));
+            } catch (error) {
+                console.error('Failed to send joystick data:', error);
+            }
+        }
+    }
+    
+    updateJoystickUI() {
+        // Update joystick status display if you have one
+        // For now, just log the change
+        if (this.joystickManager) {
+            const count = this.joystickManager.getJoystickCount();
+            console.log(`🎮 Active joysticks: ${count}`);
+        }
     }
     
     // === Driver Station Status Updates ===
@@ -55,10 +115,20 @@ class FRCDriverStation {
             UIManager.updateConnectionStatus(true);
             this.retryCount = 0;
             
+            // SAFETY: Sync joystick manager with robot enabled state
+            if (this.joystickManager) {
+                this.joystickManager.setRobotEnabled(status.enabled || status.robot_enabled || false);
+            }
+            
         } catch (error) {
             console.error('❌ Failed to update driver station status:', error);
             UIManager.updateConnectionStatus(false);
             this.retryCount++;
+            
+            // SAFETY: Disable joysticks if we lost connection
+            if (this.joystickManager) {
+                this.joystickManager.setRobotEnabled(false);
+            }
         }
     }
     
@@ -298,7 +368,7 @@ class FRCDriverStation {
     setupKeyboardShortcuts() {
         document.addEventListener('keydown', (event) => {
             // Only handle shortcuts if not typing in an input
-            if (event.target.tagName === 'INPUT') return;
+            if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') return;
             
             switch (event.key.toLowerCase()) {
                 case 'e':
@@ -325,10 +395,38 @@ class FRCDriverStation {
                     event.preventDefault();
                     setMode('test');  // Use global function with safety
                     break;
+                case 'j':
+                    event.preventDefault();
+                    if (this.joystickUI) {
+                        this.joystickUI.toggle();
+                    }
+                    break;
+                case 't':
+                    event.preventDefault();
+                    if (this.joystickManager) {
+                        this.testJoysticks();
+                    }
+                    break;
             }
         });
         
-        console.log('⌨️ Keyboard shortcuts: E=Enable, D=Disable, Space=E-Stop, 1=Teleop, 2=Auto, 3=Test');
+        console.log('⌨️ Keyboard shortcuts:');
+        console.log('   E=Enable, D=Disable, Space=E-Stop');
+        console.log('   1=Teleop, 2=Auto, 3=Test');
+        console.log('   J=Toggle Joystick UI, T=Test Joysticks');
+    }
+    
+    // === Joystick Testing ===
+    
+    testJoysticks() {
+        if (this.joystickManager) {
+            console.log('🎮 === JOYSTICK TEST ===');
+            this.joystickManager.printDebugInfo();
+            
+            const packet = this.joystickManager.encodeJoystickPacket();
+            console.log(`📦 Encoded packet (${packet.length} bytes):`, 
+                       Array.from(packet).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' '));
+        }
     }
     
     // === Cleanup ===
@@ -342,6 +440,9 @@ class FRCDriverStation {
         }
         if (this.ws) {
             this.ws.close();
+        }
+        if (this.joystickManager) {
+            this.joystickManager.destroy();
         }
     }
 }

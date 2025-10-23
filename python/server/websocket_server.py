@@ -22,6 +22,7 @@ class WebSocketServer:
         self._log_lock = threading.Lock()
         self._nt_initialized = False
         self._ws_loop = None
+        self.driver_station = None  # Will be set by HTTP handler
         
     def init_networktables(self, server_ip: str = None):
         """Initialize NetworkTables connection"""
@@ -193,8 +194,18 @@ class WebSocketServer:
             }))
 
             async for msg in websocket:
-                # Accept ping or commands from client if needed
-                pass
+                # Handle incoming joystick data from web client
+                try:
+                    data = json.loads(msg)
+                    if data.get('type') == 'joystick_update':
+                        # Forward joystick data to driver station
+                        if hasattr(self, 'driver_station') and self.driver_station:
+                            joystick_data = data.get('joysticks', [])
+                            self.driver_station.update_joysticks(joystick_data)
+                except json.JSONDecodeError:
+                    pass  # Ignore invalid JSON
+                except Exception as e:
+                    print(f"Error processing websocket message: {e}")
         except Exception as e:
             print(f"WebSocket error: {e}")
         finally:
