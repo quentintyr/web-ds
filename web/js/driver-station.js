@@ -16,7 +16,7 @@ class FRCDriverStation {
     }
     
     init() {
-        console.log('🚀 Initializing FRC Web Driver Station & Dashboard');
+        console.log('Initializing FRC Web Driver Station & Dashboard');
         
         // Initialize joystick manager
         this.initJoystickManager();
@@ -33,16 +33,13 @@ class FRCDriverStation {
         // Setup keyboard shortcuts
         this.setupKeyboardShortcuts();
         
-        console.log('✅ Driver Station initialized');
+        console.log('Driver Station initialized');
     }
     
     // === Joystick Manager ===
     
     initJoystickManager() {
         this.joystickManager = new JoystickManager();
-        
-        // Enable virtual joystick by default
-        this.joystickManager.setVirtualJoystickEnabled(true);
         
         // Setup joystick update callback to send data via WebSocket
         this.joystickManager.onJoystickUpdate = (data) => {
@@ -51,7 +48,7 @@ class FRCDriverStation {
         
         // Setup joystick count change callback
         this.joystickManager.onJoystickCountChanged = (count) => {
-            console.log(`🎮 Joystick count changed: ${count}`);
+            console.log(`Joystick count changed: ${count}`);
             this.updateJoystickUI();
         };
         
@@ -59,12 +56,11 @@ class FRCDriverStation {
         if (typeof JoystickUI !== 'undefined') {
             this.joystickUI = new JoystickUI(this.joystickManager);
             this.joystickUI.init();
-            console.log('✅ Joystick UI initialized (Press J to toggle)');
+            console.log('Joystick UI initialized (Press J to toggle)');
         }
         
-        console.log('✅ Joystick Manager initialized');
-        console.log('   Virtual Joystick: ENABLED (use WASD, IJKL, Arrow keys, 0-9)');
-        console.log('   Physical Joysticks: Connect USB controllers to use');
+        console.log('Joystick Manager initialized');
+        console.log('   Physical Joysticks: Connect USB controllers');
     }
     
     sendJoystickData(joystickData) {
@@ -74,10 +70,28 @@ class FRCDriverStation {
                     type: 'joystick_update',
                     joysticks: joystickData
                 };
+                
+                // Debug: Log joystick data being sent
+                const activeJoysticks = joystickData.filter(js => 
+                    js.axes.some(a => Math.abs(a) > 0.1) || 
+                    js.buttons.some(b => b)
+                );
+                if (activeJoysticks.length > 0) {
+                    console.log(`Sending joystick data: ${joystickData.length} joysticks, ${activeJoysticks.length} active`);
+                    activeJoysticks.forEach((js, i) => {
+                        const pressedButtons = js.buttons.map((b, idx) => b ? idx : -1).filter(idx => idx >= 0);
+                        if (pressedButtons.length > 0 || js.axes.some(a => Math.abs(a) > 0.1)) {
+                            console.log(`   JS${i}: Buttons [${pressedButtons.join(',')}], Axes [${js.axes.map(a => a.toFixed(2)).join(',')}]`);
+                        }
+                    });
+                }
+                
                 this.ws.send(JSON.stringify(message));
             } catch (error) {
                 console.error('Failed to send joystick data:', error);
             }
+        } else {
+            console.warn('Cannot send joystick data - WebSocket not connected');
         }
     }
     
@@ -86,7 +100,7 @@ class FRCDriverStation {
         // For now, just log the change
         if (this.joystickManager) {
             const count = this.joystickManager.getJoystickCount();
-            console.log(`🎮 Active joysticks: ${count}`);
+            console.log(`Active joysticks: ${count}`);
         }
     }
     
@@ -121,7 +135,7 @@ class FRCDriverStation {
             }
             
         } catch (error) {
-            console.error('❌ Failed to update driver station status:', error);
+            console.error('Failed to update driver station status:', error);
             UIManager.updateConnectionStatus(false);
             this.retryCount++;
             
@@ -216,7 +230,7 @@ class FRCDriverStation {
             this.ws = new WebSocket(wsUrl);
 
             this.ws.onopen = () => {
-                console.log('🔌 WebSocket connected for system monitoring');
+                console.log('WebSocket connected for system monitoring');
             };
 
             this.ws.onmessage = (evt) => {
@@ -226,7 +240,7 @@ class FRCDriverStation {
                         UIManager.updateSystemStats(msg.data);
                     } else if (msg.type === 'log' && msg.line) {
                         // Handle individual log lines if needed
-                        console.log('📥 Log:', msg.line);
+                        console.log('Log:', msg.line);
                     }
                 } catch (e) {
                     console.error('WebSocket message error:', e);
@@ -234,7 +248,7 @@ class FRCDriverStation {
             };
 
             this.ws.onclose = () => {
-                console.log('🔌 WebSocket disconnected, attempting to reconnect...');
+                console.log('WebSocket disconnected, attempting to reconnect...');
                 setTimeout(() => this.connectWebSocket(), 3000);
             };
 
@@ -268,7 +282,7 @@ class FRCDriverStation {
             }
             
             const result = await response.json();
-            console.log(`✅ API Response for ${action}:`, result);
+            console.log(`API Response for ${action}:`, result);
             
             // Check for success field - handle both true/false and missing
             if (result.success !== undefined && result.success === false) {
@@ -283,7 +297,7 @@ class FRCDriverStation {
             return result;
             
         } catch (error) {
-            console.error(`❌ Request failed (${action}):`, error);
+            console.error(`Request failed (${action}):`, error);
             throw error;
         }
     }
@@ -291,70 +305,70 @@ class FRCDriverStation {
     async enableRobot() {
         try {
             const result = await this.makeRequest('enable');
-            console.log('🟢 Robot enabled');
+            console.log('Robot enabled');
             return result;
         } catch (error) {
-            console.error('❌ Failed to enable robot', error);
+            console.error('Failed to enable robot', error);
         }
     }
     
     async disableRobot() {
         try {
             const result = await this.makeRequest('disable');
-            console.log('🔴 Robot disabled');
+            console.log('Robot disabled');
             return result;
         } catch (error) {
-            console.error('❌ Failed to disable robot', error);
+            console.error('Failed to disable robot', error);
         }
     }
     
     async setMode(mode) {
         try {
             const result = await this.makeRequest(mode);
-            console.log(`🎮 Mode set to ${mode}`);
+            console.log(`Mode set to ${mode}`);
             return result;
         } catch (error) {
-            console.error(`❌ Failed to set ${mode} mode`, error);
+            console.error(`Failed to set ${mode} mode`, error);
         }
     }
     
     async emergencyStop() {
         try {
             const result = await this.makeRequest('estop');
-            console.log('🛑 Emergency stop activated');
+            console.log('Emergency stop activated');
             return result;
         } catch (error) {
-            console.error('❌ Failed to activate emergency stop', error);
+            console.error('Failed to activate emergency stop', error);
         }
     }
     
     async setTeamNumber(teamNumber) {
         if (!teamNumber || teamNumber < 1 || teamNumber > 9999) {
-            console.error('❌ Invalid team number (must be 1-9999)');
+            console.error('Invalid team number (must be 1-9999)');
             return;
         }
         
         try {
             const result = await this.makeRequest('set_team', { team: teamNumber });
-            console.log(`🔢 Team number set to ${teamNumber}`);
+            console.log(`Team number set to ${teamNumber}`);
             return result;
         } catch (error) {
-            console.error(`❌ Failed to set team number to ${teamNumber}`, error);
+            console.error(`Failed to set team number to ${teamNumber}`, error);
         }
     }
     
     async setRobotAddress(address) {
         if (!address || !this.isValidIP(address)) {
-            console.error('❌ Invalid IP address format');
+            console.error('Invalid IP address format');
             return;
         }
         
         try {
             const result = await this.makeRequest('set_address', { address: address });
-            console.log(`🌐 Robot IP set to ${address}`);
+            console.log(`Robot IP set to ${address}`);
             return result;
         } catch (error) {
-            console.error(`❌ Failed to set robot IP to ${address}`, error);
+            console.error(`Failed to set robot IP to ${address}`, error);
         }
     }
     
@@ -410,7 +424,7 @@ class FRCDriverStation {
             }
         });
         
-        console.log('⌨️ Keyboard shortcuts:');
+        console.log('Keyboard shortcuts:');
         console.log('   E=Enable, D=Disable, Space=E-Stop');
         console.log('   1=Teleop, 2=Auto, 3=Test');
         console.log('   J=Toggle Joystick UI, T=Test Joysticks');
@@ -420,11 +434,11 @@ class FRCDriverStation {
     
     testJoysticks() {
         if (this.joystickManager) {
-            console.log('🎮 === JOYSTICK TEST ===');
+            console.log('=== JOYSTICK TEST ===');
             this.joystickManager.printDebugInfo();
             
             const packet = this.joystickManager.encodeJoystickPacket();
-            console.log(`📦 Encoded packet (${packet.length} bytes):`, 
+            console.log(`Encoded packet (${packet.length} bytes):`, 
                        Array.from(packet).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' '));
         }
     }

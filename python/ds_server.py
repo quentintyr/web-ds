@@ -39,6 +39,16 @@ def main():
     # Connect HTTP handler to WebSocket server
     FRCDriverStationHandler.set_websocket_server(websocket_server)
     
+    # CRITICAL: Create driver station instance and link it to WebSocket
+    # This ensures joystick data can flow from WebSocket to driver station
+    print("Initializing FRC Driver Station...")
+    driver_station = FRCDriverStationHandler.get_driver_station()
+    websocket_server.driver_station = driver_station
+    print(f"✅ Driver station linked to WebSocket server")
+    print(f"   Driver station ready: {driver_station is not None}")
+    team_num = driver_station.team_number if driver_station and hasattr(driver_station, 'team_number') else 'N/A'
+    print(f"   Team number: {team_num}")
+    
     # Start system monitoring
     def broadcast_callback(data):
         """Callback for broadcasting system stats"""

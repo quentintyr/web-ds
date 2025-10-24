@@ -31,36 +31,36 @@ window.addEventListener('beforeunload', () => {
 // === Control Functions ===
 
 function enableRobot() {
-    console.log('🔧 Enable button clicked');
+    console.log('Enable button clicked');
     if (ds) {
         ds.enableRobot();
     } else {
-        console.error('❌ Driver station not initialized');
+        console.error('Driver station not initialized');
         alert('Driver station not ready yet, please wait...');
     }
 }
 
 function disableRobot() {
-    console.log('🔧 Disable button clicked');
+    console.log('Disable button clicked');
     if (ds) {
         ds.disableRobot();
     } else {
-        console.error('❌ Driver station not initialized');
+        console.error('Driver station not initialized');
         alert('Driver station not ready yet, please wait...');
     }
 }
 
 async function setMode(mode) {
     if (!ds) {
-        console.error('❌ Driver station not initialized');
+        console.error('Driver station not initialized');
         return;
     }
     
     try {
-        console.log(`🎮 Switching mode to ${mode.toUpperCase()}`);
+        console.log(`Switching mode to ${mode.toUpperCase()}`);
         
         // SAFETY: Disable robot before mode switch
-        console.log('🛑 Disabling robot for safe mode switch...');
+        console.log('Disabling robot for safe mode switch...');
         
         // Update UI to show disabling
         const enableBtn = document.getElementById('enable-btn');
@@ -102,16 +102,16 @@ async function setMode(mode) {
         // Show notification
         UIManager.showModeChangeNotification(mode);
         
-        console.log(`✅ Mode switched to ${mode.toUpperCase()} - Robot DISABLED`);
-        console.log('⚠️ Click ENABLE to activate robot in new mode');
+        console.log(`Mode switched to ${mode.toUpperCase()} - Robot DISABLED`);
+        console.log('Click ENABLE to activate robot in new mode');
         
     } catch (error) {
-        console.error('❌ Error switching mode:', error);
+        console.error('Error switching mode:', error);
     }
 }
 
 function emergencyStop() {
-    console.log('🛑 Emergency stop button clicked');
+    console.log('Emergency stop button clicked');
     if (ds) {
         ds.emergencyStop();
     }

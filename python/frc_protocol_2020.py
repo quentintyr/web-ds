@@ -260,6 +260,8 @@ class FRCDriverStation:
         # This matches LibDS behavior - wait a few packets before sending joystick data
         if self._sent_packets > 5:
             joystick_bytes = self._encode_joystick_data()
+            if len(joystick_bytes) > 0:
+                print(f"📦 Adding {len(joystick_bytes)} bytes of joystick data to packet #{self._sent_packets}")
             packet += joystick_bytes
         
         return packet
@@ -475,6 +477,14 @@ class FRCDriverStation:
         Args:
             joystick_data: List of joystick dictionaries with 'axes', 'buttons', 'povs'
         """
+        print(f"🎮 FRCDriverStation.update_joysticks() called with {len(joystick_data)} joysticks")
+        for i, js in enumerate(joystick_data):
+            print(f"   Joystick {i}: {len(js.get('axes', []))} axes, {len(js.get('buttons', []))} buttons, {len(js.get('povs', []))} POVs")
+            if js.get('buttons'):
+                pressed = [i for i, b in enumerate(js.get('buttons', [])) if b]
+                if pressed:
+                    print(f"   Joystick {i}: Buttons pressed: {pressed}")
+        
         with self._joystick_lock:
             self._joysticks = joystick_data
     
@@ -499,6 +509,8 @@ class FRCDriverStation:
         packet = bytearray()
         
         with self._joystick_lock:
+            if len(self._joysticks) > 0:
+                print(f"🔧 Encoding {len(self._joysticks)} joysticks...")
             for joystick in self._joysticks:
                 js_bytes = bytearray()
                 
@@ -529,12 +541,20 @@ class FRCDriverStation:
                 js_bytes.append(button_flags & 0xFF)          # Low byte
                 
                 # POVs (16-bit angles)
-                povs = joystick.get('povs', [0])
+                # FRC standard: -1 = not pressed, 0-360 = angle in degrees
+                povs = joystick.get('povs', [-1])
                 js_bytes.append(len(povs))
                 for pov_angle in povs:
-                    # POV angle as 16-bit value (big-endian)
-                    js_bytes.append((pov_angle >> 8) & 0xFF)  # High byte
-                    js_bytes.append(pov_angle & 0xFF)          # Low byte
+                    # POV angle as 16-bit signed value (big-endian)
+                    # -1 needs to be encoded as 0xFFFF (signed -1)
+                    if pov_angle == -1:
+                        # Encode -1 as unsigned 0xFFFF
+                        js_bytes.append(0xFF)  # High byte
+                        js_bytes.append(0xFF)  # Low byte
+                    else:
+                        # Encode angle (0-360) normally
+                        js_bytes.append((pov_angle >> 8) & 0xFF)  # High byte
+                        js_bytes.append(pov_angle & 0xFF)          # Low byte
                 
                 # Prepend size byte (total bytes for this joystick)
                 size = len(js_bytes) + 1  # +1 for size byte itself

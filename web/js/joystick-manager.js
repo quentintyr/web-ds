@@ -24,19 +24,7 @@ class JoystickManager {
         
         // State tracking
         this.enabled = false;
-        this.virtualJoystickEnabled = false;
         this.blacklistedJoysticks = new Set();
-        
-        // Virtual joystick state
-        this.virtualJoystick = {
-            axes: new Array(4).fill(0.0),    // 4 axes (LX, LY, RX, RY)
-            buttons: new Array(10).fill(false),  // 10 buttons (0-9 keys)
-            povs: [0],  // 1 POV (arrow keys)
-            name: 'Virtual Keyboard Joystick'
-        };
-        
-        // Keyboard state for virtual joystick
-        this.keysPressed = new Set();
         
         // Gamepad polling
         this.gamepadPollInterval = null;
@@ -51,14 +39,11 @@ class JoystickManager {
     }
     
     init() {
-        console.log('🎮 Initializing Joystick Manager (LibDS-style)');
+        console.log('Initializing Joystick Manager (LibDS-style)');
         
         // Setup gamepad event listeners
         window.addEventListener('gamepadconnected', (e) => this.handleGamepadConnected(e));
         window.addEventListener('gamepaddisconnected', (e) => this.handleGamepadDisconnected(e));
-        
-        // Setup keyboard for virtual joystick
-        this.setupVirtualJoystick();
         
         // Start polling for gamepad updates
         this.startGamepadPolling();
@@ -66,7 +51,7 @@ class JoystickManager {
         // Check for already-connected gamepads
         this.scanForGamepads();
         
-        console.log('✅ Joystick Manager initialized');
+        console.log('Joystick Manager initialized');
         console.log(`   Max Joysticks: ${this.maxJoysticks}`);
         console.log(`   Max Axes: ${this.maxAxes}`);
         console.log(`   Max Buttons: ${this.maxButtons}`);
@@ -86,12 +71,12 @@ class JoystickManager {
     }
     
     handleGamepadConnected(event) {
-        console.log(`🎮 Gamepad connected: ${event.gamepad.id}`);
+        console.log(`Gamepad connected: ${event.gamepad.id}`);
         this.addJoystick(event.gamepad);
     }
     
     handleGamepadDisconnected(event) {
-        console.log(`🎮 Gamepad disconnected: ${event.gamepad.id}`);
+        console.log(`Gamepad disconnected: ${event.gamepad.id}`);
         this.removeJoystick(event.gamepad.index);
     }
     
@@ -104,7 +89,7 @@ class JoystickManager {
         
         // Check max joysticks
         if (this.joysticks.length >= this.maxJoysticks) {
-            console.warn(`⚠️ Maximum joysticks (${this.maxJoysticks}) reached, ignoring ${gamepad.id}`);
+            console.warn(`Maximum joysticks (${this.maxJoysticks}) reached, ignoring ${gamepad.id}`);
             return;
         }
         
@@ -115,12 +100,12 @@ class JoystickManager {
             name: gamepad.id,
             axes: new Array(Math.min(gamepad.axes.length, this.maxAxes)).fill(0.0),
             buttons: new Array(Math.min(gamepad.buttons.length, this.maxButtons)).fill(false),
-            povs: [0],  // Most controllers have 1 POV hat
+            povs: [-1],  // Most controllers have 1 POV hat, -1 = not pressed
             blacklisted: false
         };
         
         this.joysticks.push(joystick);
-        console.log(`✅ Added joystick ${joystick.id}: ${joystick.name}`);
+        console.log(`Added joystick ${joystick.id}: ${joystick.name}`);
         console.log(`   Axes: ${joystick.axes.length}, Buttons: ${joystick.buttons.length}, POVs: ${joystick.povs.length}`);
         
         // Notify listeners
@@ -133,7 +118,7 @@ class JoystickManager {
         const index = this.joysticks.findIndex(js => js.gamepadIndex === gamepadIndex);
         if (index !== -1) {
             const joystick = this.joysticks[index];
-            console.log(`❌ Removed joystick ${joystick.id}: ${joystick.name}`);
+            console.log(`Removed joystick ${joystick.id}: ${joystick.name}`);
             this.joysticks.splice(index, 1);
             
             // Re-index remaining joysticks
@@ -192,10 +177,9 @@ class JoystickManager {
                 joystick.buttons[i] = button.pressed || button.value > 0.5;
             }
             
-            // Update POV from gamepad axes (usually axes 9 and 10 on Xbox controller)
-            // Many gamepads map D-pad to buttons, not POV
-            // We'll use button mapping for now
-            joystick.povs[0] = this.calculatePOVFromButtons(gamepad);
+            // Update POV (D-Pad / Hat). Different controllers/browsers expose this
+            // as buttons (12-15) or as one/two axes. We detect both.
+            joystick.povs[0] = this.calculatePOV(gamepad);
         }
         
         // Notify listeners
@@ -204,142 +188,58 @@ class JoystickManager {
         }
     }
     
-    calculatePOVFromButtons(gamepad) {
-        // D-pad buttons are typically 12, 13, 14, 15 (Up, Down, Left, Right)
-        if (gamepad.buttons.length < 16) return 0;
-        
-        const up = gamepad.buttons[12]?.pressed || false;
-        const down = gamepad.buttons[13]?.pressed || false;
-        const left = gamepad.buttons[14]?.pressed || false;
-        const right = gamepad.buttons[15]?.pressed || false;
-        
-        // Calculate angle (FRC standard)
-        if (up && !left && !right) return 0;
-        if (up && right) return 45;
-        if (right && !up && !down) return 90;
-        if (down && right) return 135;
-        if (down && !left && !right) return 180;
-        if (down && left) return 225;
-        if (left && !up && !down) return 270;
-        if (up && left) return 315;
-        
-        return 0;  // Centered
-    }
-    
-    // === Virtual Joystick (Keyboard) ===
-    
-    setupVirtualJoystick() {
-        // Keyboard mappings (matches QJoysticks):
-        // W,A,S,D - Left Stick
-        // I,J,K,L - Right Stick
-        // Arrow Keys - POV hat
-        // Q,E - Left/Right Trigger
-        // 0-9 - Buttons
-        
-        document.addEventListener('keydown', (e) => this.handleVirtualKeyDown(e));
-        document.addEventListener('keyup', (e) => this.handleVirtualKeyUp(e));
-    }
-    
-    handleVirtualKeyDown(event) {
-        if (!this.virtualJoystickEnabled) return;
-        
-        // Don't capture if typing in input field
-        if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') return;
-        
-        const key = event.key.toLowerCase();
-        this.keysPressed.add(key);
-        
-        // Update virtual joystick state
-        this.updateVirtualJoystick();
-        
-        // Prevent default for game keys
-        if ('wasdijklqe0123456789'.includes(key) || event.key.startsWith('Arrow')) {
-            event.preventDefault();
+    calculatePOV(gamepad) {
+        // Only use button-based D-pad (buttons 12-15)
+        // Button 12 = D-pad UP, 13 = DOWN, 14 = LEFT, 15 = RIGHT
+        try {
+            if (gamepad.buttons && gamepad.buttons.length >= 16) {
+                const up = !!(gamepad.buttons[12] && gamepad.buttons[12].pressed);
+                const down = !!(gamepad.buttons[13] && gamepad.buttons[13].pressed);
+                const left = !!(gamepad.buttons[14] && gamepad.buttons[14].pressed);
+                const right = !!(gamepad.buttons[15] && gamepad.buttons[15].pressed);
+
+                // Debug: Log D-pad button states when any is pressed
+                if (up || down || left || right) {
+                    console.debug(`D-pad detected - UP:${up} DOWN:${down} LEFT:${left} RIGHT:${right} for '${gamepad.id}'`);
+                }
+
+                // Only return an angle if at least one direction is pressed
+                if (up || down || left || right) {
+                    // D-pad is pressed - return angle (0-315 degrees)
+                    // 0 = North (up), 90 = East (right), 180 = South (down), 270 = West (left)
+                    if (up && !left && !right) return 0;
+                    if (up && right) return 45;
+                    if (right && !up && !down) return 90;
+                    if (down && right) return 135;
+                    if (down && !left && !right) return 180;
+                    if (down && left) return 225;
+                    if (left && !up && !down) return 270;
+                    if (up && left) return 315;
+                }
+            }
+        } catch (e) {
+            console.debug('calculatePOV: button-based detection error', e);
         }
-    }
-    
-    handleVirtualKeyUp(event) {
-        if (!this.virtualJoystickEnabled) return;
-        
-        const key = event.key.toLowerCase();
-        this.keysPressed.delete(key);
-        
-        // Update virtual joystick state
-        this.updateVirtualJoystick();
-    }
-    
-    updateVirtualJoystick() {
-        // Left stick (WASD)
-        let leftX = 0.0, leftY = 0.0;
-        if (this.keysPressed.has('a')) leftX -= 1.0;
-        if (this.keysPressed.has('d')) leftX += 1.0;
-        if (this.keysPressed.has('w')) leftY -= 1.0;  // Y axis inverted
-        if (this.keysPressed.has('s')) leftY += 1.0;
-        
-        // Right stick (IJKL)
-        let rightX = 0.0, rightY = 0.0;
-        if (this.keysPressed.has('j')) rightX -= 1.0;
-        if (this.keysPressed.has('l')) rightX += 1.0;
-        if (this.keysPressed.has('i')) rightY -= 1.0;  // Y axis inverted
-        if (this.keysPressed.has('k')) rightY += 1.0;
-        
-        // Triggers (Q, E)
-        let leftTrigger = this.keysPressed.has('q') ? 1.0 : 0.0;
-        let rightTrigger = this.keysPressed.has('e') ? 1.0 : 0.0;
-        
-        // Update axes
-        this.virtualJoystick.axes[0] = leftX;
-        this.virtualJoystick.axes[1] = leftY;
-        this.virtualJoystick.axes[2] = rightX;
-        this.virtualJoystick.axes[3] = rightY;
-        
-        // Buttons (0-9 keys)
-        for (let i = 0; i < 10; i++) {
-            this.virtualJoystick.buttons[i] = this.keysPressed.has(i.toString());
-        }
-        
-        // POV (Arrow keys)
-        let povAngle = 0;
-        const up = this.keysPressed.has('arrowup');
-        const down = this.keysPressed.has('arrowdown');
-        const left = this.keysPressed.has('arrowleft');
-        const right = this.keysPressed.has('arrowright');
-        
-        if (up && !left && !right) povAngle = 0;
-        else if (up && right) povAngle = 45;
-        else if (right && !up && !down) povAngle = 90;
-        else if (down && right) povAngle = 135;
-        else if (down && !left && !right) povAngle = 180;
-        else if (down && left) povAngle = 225;
-        else if (left && !up && !down) povAngle = 270;
-        else if (up && left) povAngle = 315;
-        
-        this.virtualJoystick.povs[0] = povAngle;
-    }
-    
-    setVirtualJoystickEnabled(enabled) {
-        this.virtualJoystickEnabled = enabled;
-        console.log(`🎹 Virtual joystick ${enabled ? 'enabled' : 'disabled'}`);
-        
-        if (this.onJoystickCountChanged) {
-            this.onJoystickCountChanged(this.getJoystickCount());
-        }
+
+        // Default: not pressed (FRC standard is -1)
+        // No axes fallback - only buttons 12-15 are considered D-pad
+        return -1;
     }
     
     // === Safety Features (LibDS-compatible) ===
     
     setRobotEnabled(enabled) {
         this.enabled = enabled;
-        console.log(`🤖 Robot ${enabled ? 'ENABLED' : 'DISABLED'} - Joystick safety ${enabled ? 'OFF' : 'ON'}`);
+        console.log(`Robot ${enabled ? 'ENABLED' : 'DISABLED'} - Joystick safety ${enabled ? 'OFF' : 'ON'}`);
     }
     
     setJoystickBlacklisted(joystickId, blacklisted) {
         if (blacklisted) {
             this.blacklistedJoysticks.add(joystickId);
-            console.log(`⛔ Joystick ${joystickId} blacklisted`);
+            console.log(`Joystick ${joystickId} blacklisted`);
         } else {
             this.blacklistedJoysticks.delete(joystickId);
-            console.log(`✅ Joystick ${joystickId} whitelisted`);
+            console.log(`Joystick ${joystickId} whitelisted`);
         }
     }
     
@@ -350,11 +250,7 @@ class JoystickManager {
     // === Data Access (LibDS-compatible) ===
     
     getJoystickCount() {
-        let count = this.joysticks.length;
-        if (this.virtualJoystickEnabled) {
-            count++;
-        }
-        return count;
+        return this.joysticks.length;
     }
     
     getJoystickAxis(joystickId, axisId) {
@@ -363,11 +259,6 @@ class JoystickManager {
         
         // Check blacklist
         if (this.isJoystickBlacklisted(joystickId)) return 0.0;
-        
-        // Virtual joystick is always last
-        if (this.virtualJoystickEnabled && joystickId === this.joysticks.length) {
-            return this.virtualJoystick.axes[axisId] || 0.0;
-        }
         
         const joystick = this.joysticks[joystickId];
         if (!joystick) return 0.0;
@@ -382,11 +273,6 @@ class JoystickManager {
         // Check blacklist
         if (this.isJoystickBlacklisted(joystickId)) return false;
         
-        // Virtual joystick is always last
-        if (this.virtualJoystickEnabled && joystickId === this.joysticks.length) {
-            return this.virtualJoystick.buttons[buttonId] || false;
-        }
-        
         const joystick = this.joysticks[joystickId];
         if (!joystick) return false;
         
@@ -394,21 +280,16 @@ class JoystickManager {
     }
     
     getJoystickPOV(joystickId, povId) {
-        // SAFETY: Return 0 if robot is disabled (same as LibDS)
-        if (!this.enabled) return 0;
+        // SAFETY: Return -1 (not pressed) if robot is disabled (same as LibDS)
+        if (!this.enabled) return -1;
         
         // Check blacklist
-        if (this.isJoystickBlacklisted(joystickId)) return 0;
-        
-        // Virtual joystick is always last
-        if (this.virtualJoystickEnabled && joystickId === this.joysticks.length) {
-            return this.virtualJoystick.povs[povId] || 0;
-        }
+        if (this.isJoystickBlacklisted(joystickId)) return -1;
         
         const joystick = this.joysticks[joystickId];
-        if (!joystick) return 0;
+        if (!joystick) return -1;
         
-        return joystick.povs[povId] || 0;
+        return joystick.povs[povId] !== undefined ? joystick.povs[povId] : -1;
     }
     
     getAllJoystickData() {
@@ -424,19 +305,6 @@ class JoystickManager {
                 buttons: js.buttons.map((_, btnId) => this.getJoystickButton(i, btnId)),
                 povs: js.povs.map((_, povId) => this.getJoystickPOV(i, povId)),
                 blacklisted: this.isJoystickBlacklisted(i)
-            });
-        }
-        
-        // Add virtual joystick (always last)
-        if (this.virtualJoystickEnabled) {
-            const id = this.joysticks.length;
-            data.push({
-                id: id,
-                name: this.virtualJoystick.name,
-                axes: this.virtualJoystick.axes.map((_, axisId) => this.getJoystickAxis(id, axisId)),
-                buttons: this.virtualJoystick.buttons.map((_, btnId) => this.getJoystickButton(id, btnId)),
-                povs: this.virtualJoystick.povs.map((_, povId) => this.getJoystickPOV(id, povId)),
-                blacklisted: this.isJoystickBlacklisted(id)
             });
         }
         
@@ -520,6 +388,52 @@ class JoystickManager {
     
     // === Debug/Testing ===
     
+    testControllerMapping() {
+        /**
+         * Test utility to diagnose controller button/axis mapping
+         * Call this to see raw gamepad data and help identify correct D-pad indices
+         */
+        const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+        
+        console.log('=== CONTROLLER MAPPING TEST ===');
+        console.log(`Found ${gamepads.filter(g => g).length} gamepads`);
+        
+        for (let i = 0; i < gamepads.length; i++) {
+            const gamepad = gamepads[i];
+            if (!gamepad) continue;
+            
+            console.log(`\nGamepad ${i}: ${gamepad.id}`);
+            console.log(`   Mapping: ${gamepad.mapping}`);
+            console.log(`   Connected: ${gamepad.connected}`);
+            console.log(`   Axes: ${gamepad.axes.length}, Buttons: ${gamepad.buttons.length}`);
+            
+            // Show all button states
+            console.log('   Button States:');
+            for (let b = 0; b < gamepad.buttons.length; b++) {
+                const button = gamepad.buttons[b];
+                if (button.pressed) {
+                    console.log(`      Button ${b}: PRESSED (value: ${button.value.toFixed(2)})`);
+                }
+            }
+            
+            // Show all axis values (only if non-zero)
+            console.log('   Axis Values:');
+            for (let a = 0; a < gamepad.axes.length; a++) {
+                const value = gamepad.axes[a];
+                if (Math.abs(value) > 0.1) {
+                    console.log(`      Axis ${a}: ${value.toFixed(2)}`);
+                }
+            }
+            
+            // Show calculated POV
+            const pov = this.calculatePOV(gamepad);
+            console.log(`   Calculated POV: ${pov}° ${pov === -1 ? '(not pressed)' : ''}`);
+        }
+        
+        console.log('\nTIP: Press D-pad buttons and call this again to see which indices light up!');
+        console.log('   Usage: ds.joystickManager.testControllerMapping()');
+    }
+    
     getDebugInfo() {
         const info = {
             joystickCount: this.getJoystickCount(),
@@ -544,7 +458,7 @@ class JoystickManager {
     }
     
     printDebugInfo() {
-        console.log('🎮 === Joystick Debug Info ===');
+        console.log('=== Joystick Debug Info ===');
         const info = this.getDebugInfo();
         console.log(`   Total Joysticks: ${info.joystickCount}`);
         console.log(`   Robot Enabled: ${info.enabled}`);
@@ -564,7 +478,6 @@ class JoystickManager {
     destroy() {
         this.stopGamepadPolling();
         this.joysticks = [];
-        this.keysPressed.clear();
-        console.log('🎮 Joystick Manager destroyed');
+        console.log('Joystick Manager destroyed');
     }
 }

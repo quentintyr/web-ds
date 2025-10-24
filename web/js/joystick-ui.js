@@ -21,7 +21,7 @@ class JoystickUI {
         // Start updating UI
         this.startUpdating();
         
-        console.log('✅ Joystick UI initialized');
+        console.log('Joystick UI initialized');
     }
     
     createContainer() {
@@ -32,46 +32,52 @@ class JoystickUI {
             position: fixed;
             bottom: 20px;
             right: 20px;
-            background: rgba(20, 20, 30, 0.95);
-            border: 2px solid #00ff88;
-            border-radius: 10px;
-            padding: 15px;
-            min-width: 300px;
-            max-height: 400px;
+            background: #20222e;
+            border: 1px solid #444;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            min-width: 320px;
+            max-width: 400px;
+            max-height: 500px;
             overflow-y: auto;
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-            color: #00ff88;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            font-size: 14px;
+            color: #f8f8f8;
             z-index: 1000;
-            box-shadow: 0 4px 20px rgba(0, 255, 136, 0.3);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.13);
         `;
         
         // Add header
         const header = document.createElement('div');
         header.style.cssText = `
             font-weight: bold;
-            font-size: 14px;
-            margin-bottom: 10px;
-            padding-bottom: 5px;
-            border-bottom: 1px solid #00ff88;
+            font-size: 1.05rem;
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #444;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            color: #ffcf40;
+            letter-spacing: 0.5px;
         `;
         
         const title = document.createElement('span');
-        title.textContent = '🎮 JOYSTICKS';
+        title.textContent = 'JOYSTICKS';
         
         const closeBtn = document.createElement('button');
         closeBtn.textContent = '✕';
         closeBtn.style.cssText = `
             background: none;
             border: none;
-            color: #00ff88;
-            font-size: 16px;
+            color: #f8f8f8;
+            font-size: 18px;
             cursor: pointer;
             padding: 0 5px;
+            transition: color 0.2s;
         `;
+        closeBtn.onmouseover = () => closeBtn.style.color = '#ff5454';
+        closeBtn.onmouseout = () => closeBtn.style.color = '#f8f8f8';
         closeBtn.onclick = () => this.hide();
         
         header.appendChild(title);
@@ -113,26 +119,25 @@ class JoystickUI {
         const data = this.joystickManager.getAllJoystickData();
         
         if (data.length === 0) {
-            content.innerHTML = '<div style="color: #ff6b35;">No joysticks connected</div>';
+            content.innerHTML = '<div style="color: #9E9E9E; text-align: center; padding: 1rem;">No joysticks connected</div>';
             return;
         }
         
         let html = '';
         
         for (const js of data) {
-            const statusColor = js.blacklisted ? '#ff6b35' : '#00ff88';
+            const statusColor = js.blacklisted ? '#ff5454' : '#4CAF50';
             const statusText = js.blacklisted ? 'BLACKLISTED' : 'ACTIVE';
             
             html += `
-                <div style="margin-bottom: 15px; padding: 10px; background: rgba(0, 255, 136, 0.05); border-radius: 5px;">
-                    <div style="font-weight: bold; margin-bottom: 5px;">
+                <div style="margin-bottom: 1rem; padding: 0.75rem; background: #27293d; border-radius: 0.5rem; border: 1px solid #444;">
+                    <div style="font-weight: 600; margin-bottom: 0.5rem; color: #6ec1e4; font-size: 0.95rem;">
                         [${js.id}] ${this.truncateName(js.name)}
-                        <span style="color: ${statusColor}; font-size: 10px;">${statusText}</span>
+                        <span style="color: ${statusColor}; font-size: 0.75rem; font-weight: normal; margin-left: 0.5rem;">${statusText}</span>
                     </div>
                     
                     ${this.renderAxes(js.axes)}
                     ${this.renderButtons(js.buttons)}
-                    ${this.renderPOVs(js.povs)}
                 </div>
             `;
         }
@@ -143,19 +148,19 @@ class JoystickUI {
     renderAxes(axes) {
         if (axes.length === 0) return '';
         
-        let html = '<div style="margin: 5px 0;">Axes:</div>';
-        html += '<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 3px; margin-left: 10px;">';
+        let html = '<div style="margin: 0.5rem 0 0.25rem 0; color: #ffcf40; font-size: 0.85rem; font-weight: 600;">Axes:</div>';
+        html += '<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.4rem; margin-left: 0.5rem;">';
         
         for (let i = 0; i < axes.length; i++) {
             const value = axes[i];
             const percentage = ((value + 1) / 2 * 100).toFixed(0);
-            const barColor = Math.abs(value) > 0.1 ? '#00ff88' : '#444';
+            const barColor = Math.abs(value) > 0.1 ? '#4CAF50' : '#444';
             
             html += `
-                <div style="font-size: 10px;">
-                    <div>A${i}: ${value.toFixed(2)}</div>
-                    <div style="width: 100%; height: 4px; background: #222; border-radius: 2px;">
-                        <div style="width: ${percentage}%; height: 100%; background: ${barColor}; border-radius: 2px;"></div>
+                <div style="font-size: 0.8rem;">
+                    <div style="color: #f8f8f8; margin-bottom: 2px;">A${i}: ${value.toFixed(2)}</div>
+                    <div style="width: 100%; height: 5px; background: #1a1c28; border-radius: 3px; overflow: hidden;">
+                        <div style="width: ${percentage}%; height: 100%; background: ${barColor}; transition: all 0.1s;"></div>
                     </div>
                 </div>
             `;
@@ -168,26 +173,28 @@ class JoystickUI {
     renderButtons(buttons) {
         if (buttons.length === 0) return '';
         
-        let html = '<div style="margin: 5px 0;">Buttons:</div>';
-        html += '<div style="display: flex; flex-wrap: wrap; gap: 3px; margin-left: 10px;">';
+        let html = '<div style="margin: 0.5rem 0 0.25rem 0; color: #ffcf40; font-size: 0.85rem; font-weight: 600;">Buttons:</div>';
+        html += '<div style="display: flex; flex-wrap: wrap; gap: 0.4rem; margin-left: 0.5rem;">';
         
         for (let i = 0; i < buttons.length; i++) {
             const pressed = buttons[i];
-            const color = pressed ? '#00ff88' : '#444';
-            const symbol = pressed ? '●' : '○';
+            const bgColor = pressed ? '#4CAF50' : '#444';
+            const textColor = pressed ? '#fff' : '#9E9E9E';
             
             html += `
                 <div style="
-                    width: 22px;
-                    height: 22px;
-                    background: ${color};
+                    width: 26px;
+                    height: 26px;
+                    background: ${bgColor};
                     border-radius: 50%;
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    font-size: 8px;
-                    font-weight: bold;
-                    color: ${pressed ? '#000' : '#666'};
+                    font-size: 0.7rem;
+                    font-weight: 600;
+                    color: ${textColor};
+                    transition: all 0.1s;
+                    box-shadow: ${pressed ? '0 0 8px rgba(76, 175, 80, 0.5)' : 'none'};
                 ">
                     ${i}
                 </div>
@@ -201,17 +208,34 @@ class JoystickUI {
     renderPOVs(povs) {
         if (povs.length === 0) return '';
         
-        let html = '<div style="margin: 5px 0;">POV:</div>';
-        html += '<div style="margin-left: 10px;">';
+        let html = '<div style="margin: 0.5rem 0 0.25rem 0; color: #ffcf40; font-size: 0.85rem; font-weight: 600;">POV (D-Pad):</div>';
+        html += '<div style="margin-left: 0.5rem;">';
         
         for (let i = 0; i < povs.length; i++) {
             const angle = povs[i];
-            const active = angle !== 0;
-            html += `<div style="color: ${active ? '#00ff88' : '#666'};">POV${i}: ${angle}°</div>`;
+            // POV is active when not -1 (FRC standard for "not pressed")
+            const active = angle !== -1;
+            const displayAngle = angle === -1 ? '--' : `${angle}°`;
+            const direction = this.getPOVDirection(angle);
+            const textColor = active ? '#4CAF50' : '#9E9E9E';
+            html += `<div style="color: ${textColor}; font-size: 0.9rem; padding: 0.2rem 0;">POV${i}: ${displayAngle} ${direction}</div>`;
         }
         
         html += '</div>';
         return html;
+    }
+    
+    getPOVDirection(angle) {
+        if (angle === -1) return '';
+        if (angle === 0) return '↑';
+        if (angle === 45) return '↗';
+        if (angle === 90) return '→';
+        if (angle === 135) return '↘';
+        if (angle === 180) return '↓';
+        if (angle === 225) return '↙';
+        if (angle === 270) return '←';
+        if (angle === 315) return '↖';
+        return '';
     }
     
     truncateName(name) {

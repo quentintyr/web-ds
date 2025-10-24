@@ -198,10 +198,14 @@ class WebSocketServer:
                 try:
                     data = json.loads(msg)
                     if data.get('type') == 'joystick_update':
+                        print(f"🎮 WebSocket received joystick_update message")
                         # Forward joystick data to driver station
                         if hasattr(self, 'driver_station') and self.driver_station:
                             joystick_data = data.get('joysticks', [])
+                            print(f"   Forwarding {len(joystick_data)} joysticks to driver station")
                             self.driver_station.update_joysticks(joystick_data)
+                        else:
+                            print(f"   ⚠️ WARNING: driver_station not available! self.driver_station = {self.driver_station}")
                 except json.JSONDecodeError:
                     pass  # Ignore invalid JSON
                 except Exception as e:

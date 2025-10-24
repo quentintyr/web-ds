@@ -9,7 +9,7 @@ const maxReconnectAttempts = 5;
 class UIManager {
     static displayDriverStationStatus(status) {
         // Debug: Log the received mode value
-        console.log('📊 Received robot status:', {
+        console.log('Received robot status:', {
             mode: status.mode,
             mode_type: typeof status.mode,
             mode_string: status.mode_string,
@@ -57,7 +57,7 @@ class UIManager {
         }
         
         // Debug: Log robot communication status
-        console.log('🤖 Robot Status:', {
+        console.log('Robot Status:', {
             robot_communications: status.robot_communications,
             robot_code: status.robot_code,
             team_number: status.team_number,
@@ -90,7 +90,7 @@ class UIManager {
     }
     
     static updateModeButtons(currentMode) {
-        console.log('🎮 Updating mode buttons for:', currentMode);
+        console.log('Updating mode buttons for:', currentMode);
         
         // Remove active class from all mode buttons first
         const teleopBtn = document.getElementById('teleop-btn');
@@ -127,12 +127,12 @@ class UIManager {
             const activeButton = document.getElementById(activeButtonId);
             if (activeButton) {
                 activeButton.classList.add('active');
-                console.log(`✅ Mode button activated: ${activeButtonId} (mode: ${currentMode})`);
+                console.log(`Mode button activated: ${activeButtonId} (mode: ${currentMode})`);
             } else {
-                console.warn(`⚠️ Button not found: ${activeButtonId}`);
+                console.warn(`Button not found: ${activeButtonId}`);
             }
         } else {
-            console.warn(`⚠️ Unknown mode value: ${currentMode} (type: ${typeof currentMode})`);
+            console.warn(`Unknown mode value: ${currentMode} (type: ${typeof currentMode})`);
         }
     }
     
@@ -164,7 +164,7 @@ class UIManager {
     }
 
     static updateSystemStats(stats) {
-        console.log('📊 System Stats Update:', stats);
+        console.log('System Stats Update:', stats);
         
         // Update CPU widget
         if (stats.cpu_percent !== undefined) {
