@@ -24,11 +24,9 @@ class FRCDriverStation {
         // Start status updates
         this.startStatusUpdates();
         
-        // Start robot data updates  
-        this.startRobotDataUpdates();
+    // No need to poll status.json for dashboard data; updates come via WebSocket
 
-        // Connect to WebSocket for real-time updates
-        this.connectWebSocket();
+    this.connectWebSocket();
         
         // Setup keyboard shortcuts
         this.setupKeyboardShortcuts();
@@ -147,65 +145,9 @@ class FRCDriverStation {
     }
     
     // === Robot Data Updates ===
+    // (Removed: dashboard polling via status.json; now handled by WebSocket)
+
     
-    startRobotDataUpdates() {
-        // Start data fetching
-        this.fetchRobotData();
-        this.fetchLogs();
-        
-        // Set up periodic updates
-        setInterval(() => this.fetchRobotData(), 1000);  // Update data every second
-        setInterval(() => this.fetchLogs(), 2000);       // Update logs every 2 seconds
-    }
-    
-    async fetchRobotData() {
-        try {
-            // Fetch from the JSON file your SimpleJsonWriter creates
-            const response = await fetch('status.json', {cache: "no-store"});
-            
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
-            
-            const data = await response.json();
-            DashboardManager.updateDashboard(data);
-            
-        } catch (error) {
-            console.error('Error fetching robot data:', error);
-            
-            // Try to reconnect
-            if (reconnectAttempts < maxReconnectAttempts) {
-                reconnectAttempts++;
-                setTimeout(() => this.fetchRobotData(), 2000);
-            }
-        }
-    }
-    
-    async fetchLogs() {
-        try {
-            const response = await fetch('robot.log', {cache: "no-store"});
-            const data = await response.text();
-            
-            const logContainer = document.getElementById('robot-log');
-            if (logContainer) {
-                // Convert ANSI color codes to HTML
-                const htmlContent = this.convertAnsiToHtml(data);
-                logContainer.innerHTML = htmlContent;
-                
-                // Auto-scroll to bottom
-                const wasAtBottom = logContainer.scrollHeight - logContainer.scrollTop <= logContainer.clientHeight + 5;
-                if (wasAtBottom) {
-                    logContainer.scrollTop = logContainer.scrollHeight;
-                }
-            }
-        } catch (error) {
-            console.error('Error fetching logs:', error);
-            const logContainer = document.getElementById('robot-log');
-            if (logContainer) {
-                logContainer.textContent = "Unable to fetch log";
-            }
-        }
-    }
     
     convertAnsiToHtml(text) {
         // Simple ANSI to HTML conversion
@@ -239,8 +181,30 @@ class FRCDriverStation {
                     if (msg.type === 'system_stats' && msg.data) {
                         UIManager.updateSystemStats(msg.data);
                     } else if (msg.type === 'log' && msg.line) {
-                        // Handle individual log lines if needed
-                        console.log('Log:', msg.line);
+                        // Append single log line (real-time)
+                        try {
+                            const logContainer = document.getElementById('robot-log');
+                            if (logContainer) {
+                                const html = this.convertAnsiToHtml(String(msg.line) + '\\n');
+                                // Append and keep auto-scroll behaviour
+                                const atBottom = logContainer.scrollHeight - logContainer.scrollTop <= logContainer.clientHeight + 5;
+                                logContainer.insertAdjacentHTML('beforeend', html);
+                                if (atBottom) logContainer.scrollTop = logContainer.scrollHeight;
+                            }
+                        } catch (e) { console.error('Error appending log line:', e); }
+                    } else if (msg.type === 'log_init' && msg.data) {
+                        // Full history initialization via WebSocket
+                        try {
+                            const logContainer = document.getElementById('robot-log');
+                            if (logContainer) {
+                                const html = this.convertAnsiToHtml(msg.data.join('\\n'));
+                                logContainer.innerHTML = html;
+                                logContainer.scrollTop = logContainer.scrollHeight;
+                            }
+                        } catch (e) { console.error('Error initializing logs:', e); }
+                    } else if (msg.type === 'dashboard' && msg.data) {
+                        // Real-time dashboard update
+                        DashboardManager.updateDashboard(msg.data);
                     }
                 } catch (e) {
                     console.error('WebSocket message error:', e);
@@ -449,9 +413,7 @@ class FRCDriverStation {
         if (this.updateInterval) {
             clearInterval(this.updateInterval);
         }
-        if (this.logInterval) {
-            clearInterval(this.logInterval);
-        }
+        // No log polling interval to clear
         if (this.ws) {
             this.ws.close();
         }
