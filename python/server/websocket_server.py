@@ -55,27 +55,27 @@ class WebSocketServer:
                         print("Connected to VMX-pi NetworkTables server!")
                         return
                     else:
-                        print(f"⏳ Connecting to VMX-pi... ({i+1}/10)")
+                        print(f"Connecting to VMX-pi... ({i+1}/10)")
                 print("❌ Failed to connect to VMX-pi NetworkTables server")
                 print("   Check if VMX-pi is running and accessible")
             
             connection_thread = threading.Thread(target=check_connection, daemon=True)
             connection_thread.start()
         except Exception as e:
-            print(f"❌ Failed to init NetworkTables: {e}")
+            print(f"Failed to init NetworkTables: {e}")
 
     def _subscribe_tables(self):
         """Subscribe to NetworkTables for log and status updates"""
+        import time
+        self._dashboard_lock = threading.Lock()
+
         def log_listener(*args):
             try:
                 _, key, value = args[:3]
             except Exception:
                 return
             try:
-                # Debug: Print ALL NetworkTables activity to diagnose connection
                 print(f"NetworkTables update: key='{key}' value='{value}'")
-                
-                # Process both "latest" for real-time updates and "history" for initial load
                 if key == "latest":
                     print(f"Processing latest log: {value}")
                     with self._log_lock:
@@ -84,19 +84,17 @@ class WebSocketServer:
                     if self._ws_loop:
                         fmt = 'html' if '<' in str(value) else 'ansi'
                         asyncio.run_coroutine_threadsafe(
-                            self._broadcast({'type': 'log', 'line': value, 'format': fmt}), 
+                            self._broadcast({'type': 'log', 'line': value, 'format': fmt}),
                             self._ws_loop
                         )
                 elif key == "history":
                     print(f"Processing log history: {len(value)} characters")
-                    # Split history into individual lines and update our log storage
                     history_lines = [line.strip() for line in str(value).split('\\n') if line.strip()]
                     with self._log_lock:
-                        self._log_lines = history_lines[-Config.MAX_LOG_HISTORY:]  # Keep last 500 lines
+                        self._log_lines = history_lines[-Config.MAX_LOG_HISTORY:]
                     if self._ws_loop:
-                        # Send complete history to newly connected clients
                         asyncio.run_coroutine_threadsafe(
-                            self._broadcast({'type': 'log_init', 'data': history_lines}), 
+                            self._broadcast({'type': 'log_init', 'data': history_lines}),
                             self._ws_loop
                         )
                 else:
@@ -111,16 +109,18 @@ class WebSocketServer:
                 return
             try:
                 print(f"Dashboard listener: key={key} value={value}")
-                if self._status is None:
-                    self._status = {}
-                self._status[key] = value
-                if self._ws_loop:
-                    asyncio.run_coroutine_threadsafe(
-                        self._broadcast({'type': 'status', 'table': 'Dashboard', 'key': key, 'value': value}), 
-                        self._ws_loop
-                    )
+                with self._dashboard_lock:
+                    if self._status is None:
+                        self._status = {}
+                    self._status[key] = value
+                    # Broadcast the entire dashboard state
+                    if self._ws_loop:
+                        asyncio.run_coroutine_threadsafe(
+                            self._broadcast({'type': 'dashboard', 'data': dict(self._status)}),
+                            self._ws_loop
+                        )
             except Exception as e:
-                print(f"❌ Status listener error: {e}")
+                print(f"Status listener error: {e}")
 
         # Subscribe to logs table
         try:
@@ -138,6 +138,20 @@ class WebSocketServer:
         except Exception:
             pass
 
+        # Start a thread to broadcast dashboard state every 50ms
+        def dashboard_broadcast_loop():
+            while True:
+                time.sleep(0.05)
+                with self._dashboard_lock:
+                    if self._status and self._ws_loop:
+                        asyncio.run_coroutine_threadsafe(
+                            self._broadcast({'type': 'dashboard', 'data': dict(self._status)}),
+                            self._ws_loop
+                        )
+
+        t = threading.Thread(target=dashboard_broadcast_loop, daemon=True)
+        t.start()
+
     async def _broadcast(self, message: dict):
         """Broadcast message to all connected WebSocket clients"""
         data = json.dumps(message)
@@ -153,11 +167,6 @@ class WebSocketServer:
         for ws in to_remove:
             self.system_monitor.remove_client(ws)
 
-    def get_status_json(self):
-        """Get status as JSON string"""
-        if self._status is None:
-            return None
-        return json.dumps(self._status)
 
     def get_status(self):
         """Get current status with system stats"""
@@ -198,7 +207,7 @@ class WebSocketServer:
                 try:
                     data = json.loads(msg)
                     if data.get('type') == 'joystick_update':
-                        print(f"🎮 WebSocket received joystick_update message")
+                        print(f"WebSocket received joystick_update message")
                         # Forward joystick data to driver station
                         if hasattr(self, 'driver_station') and self.driver_station:
                             joystick_data = data.get('joysticks', [])

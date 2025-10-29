@@ -59,7 +59,7 @@ class FRCDriverStationHandler(http.server.SimpleHTTPRequestHandler):
         self.web_root = os.path.abspath(web_dir)
         
         # Configure team number
-        print(f"🔧 Setting team number to: {Config.DEFAULT_TEAM_NUMBER}")
+        print(f"Setting team number to: {Config.DEFAULT_TEAM_NUMBER}")
         self.ds.set_team_number(Config.DEFAULT_TEAM_NUMBER)
 
         super().__init__(*args, directory=self.web_root, **kwargs)
@@ -78,10 +78,6 @@ class FRCDriverStationHandler(http.server.SimpleHTTPRequestHandler):
             self._handle_api_request(parsed_path)
         elif parsed_path.path == '/api/ds/status':
             self._send_json_response(self.ds.get_status())
-        elif parsed_path.path == '/status.json':
-            self._serve_status_json()
-        elif parsed_path.path == '/robot.log':
-            self._serve_robot_log()
         else:
             # Handle static files
             if parsed_path.path == '/':
@@ -112,18 +108,18 @@ class FRCDriverStationHandler(http.server.SimpleHTTPRequestHandler):
             self._send_json_response(response)
             
         except Exception as e:
-            self.log_message(f"❌ API Error: {e}")
+            self.log_message(f"API Error: {e}")
             self._send_json_response({'error': str(e)}, 500)
     
     def _execute_action(self, action, params):
         """Execute the requested action"""
         
         if action == 'enable':
-            print(f"🔧 Processing enable command...")
+            print(f"Processing enable command...")
             
             # Get current status first
             current_status = self.ds.get_status()
-            print(f"📊 Pre-enable status: comms={current_status.get('robot_communications', False)}, "
+            print(f"Pre-enable status: comms={current_status.get('robot_communications', False)}, "
                   f"code={current_status.get('robot_code', False)}, "
                   f"can_enable={current_status.get('can_be_enabled', False)}")
             
@@ -139,12 +135,12 @@ class FRCDriverStationHandler(http.server.SimpleHTTPRequestHandler):
                 elif current_status.get('emergency_stopped', False):
                     error_msg = "Robot is emergency stopped"
                 
-                print(f"⚠️ {error_msg}")
+                print(f"{error_msg}")
                 result = {'status': 'failed', 'success': False, 'error': error_msg}
             else:
                 result = {'status': 'enabled', 'success': True}
             
-            print(f"🔧 Enable result: {result}")
+            print(f"Enable result: {result}")
             return result
         
         elif action == 'disable':
@@ -216,43 +212,10 @@ class FRCDriverStationHandler(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(response)
             
         except Exception as e:
-            self.log_message(f"❌ Response Error: {e}")
+            self.log_message(f"Response Error: {e}")
             super().send_error(500, "Internal server error")
     
-    def _serve_status_json(self):
-        """Serve robot status from WebSocket server"""
-        try:
-            if self._websocket_server:
-                status = self._websocket_server.get_status()
-                self._send_json_response(status)
-            else:
-                self._send_json_response({'error': 'WebSocket server not available'}, 500)
-        except Exception as e:
-            self.log_message(f"❌ Error serving status: {e}")
-            self.send_error(500, "Error reading robot status")
     
-    def _serve_robot_log(self):
-        """Serve robot log from WebSocket server"""
-        try:
-            if self._websocket_server:
-                content = self._websocket_server.get_log_text()
-                if content is None:
-                    content = "No robot logs available yet..."
-            else:
-                content = "WebSocket server not available"
-
-            self.send_response(200)
-            self.send_header('Content-Type', 'text/plain')
-            self.send_header('Content-Length', str(len(content)))
-            self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.end_headers()
-
-            self.wfile.write(content.encode('utf-8'))
-                
-        except Exception as e:
-            self.log_message(f"❌ Error serving robot log: {e}")
-            self.send_error(500, "Error reading robot log")
     
     def do_OPTIONS(self):
         """Handle CORS preflight requests"""
