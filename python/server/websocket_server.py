@@ -176,13 +176,6 @@ class WebSocketServer:
         base_status.update(system_stats)
         return base_status
 
-    def get_log_text(self):
-        """Get all logs as text"""
-        with self._log_lock:
-            if not self._log_lines:
-                return None
-            return "\\n".join(self._log_lines)
-
     async def websocket_handler(self, websocket, path=None):
         """Handle WebSocket connections"""
         self.system_monitor.add_client(websocket)

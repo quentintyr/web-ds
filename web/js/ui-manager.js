@@ -3,8 +3,6 @@
  */
 
 let isConnected = false;
-let reconnectAttempts = 0;
-const maxReconnectAttempts = 5;
 
 class UIManager {
     static displayDriverStationStatus(status) {
@@ -82,7 +80,6 @@ class UIManager {
         if (connected) {
             indicator.className = 'connection-indicator connected';
             statusText.textContent = 'Connected';
-            reconnectAttempts = 0;
         } else {
             indicator.className = 'connection-indicator disconnected';
             statusText.textContent = 'Disconnected';

@@ -5,8 +5,6 @@
 class FRCDriverStation {
     constructor() {
         this.updateInterval = null;
-        this.logInterval = null;
-        this.lastUpdateTime = null;
         this.retryCount = 0;
         this.maxRetries = 5;
         this.ws = null;
@@ -24,9 +22,8 @@ class FRCDriverStation {
         // Start status updates
         this.startStatusUpdates();
         
-    // No need to poll status.json for dashboard data; updates come via WebSocket
-
-    this.connectWebSocket();
+        // Connect to WebSocket for real-time updates
+        this.connectWebSocket();
         
         // Setup keyboard shortcuts
         this.setupKeyboardShortcuts();
@@ -146,8 +143,6 @@ class FRCDriverStation {
     
     // === Robot Data Updates ===
     // (Removed: dashboard polling via status.json; now handled by WebSocket)
-
-    
     
     convertAnsiToHtml(text) {
         // Simple ANSI to HTML conversion
