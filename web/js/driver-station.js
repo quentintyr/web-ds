@@ -121,7 +121,9 @@ class FRCDriverStation {
             
             const status = await response.json();
             UIManager.displayDriverStationStatus(status);
-            UIManager.updateConnectionStatus(true);
+            // Show disconnected if robot is not online or code has crashed
+            const isConnected = !!(status.connected && status.code_present);
+            UIManager.updateConnectionStatus(isConnected);
             this.retryCount = 0;
             
             // SAFETY: Sync joystick manager with robot enabled state
