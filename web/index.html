@@ -40,7 +40,10 @@
 
   <div class="dashboard">
     <div class="logs-section">
-      <div class="log-title">Robot Logs</div>
+      <div style="display: flex; align-items: center; gap: 12px;">
+  <div class="log-title">Robot Logs</div>
+  <button id="restart-robot-btn" class="btn btn-restart" onclick="restartRobot()">Restart Robot</button>
+      </div>
       <div class="log-container" id="robot-log">Loading log...</div>
     </div>
     

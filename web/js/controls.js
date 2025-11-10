@@ -29,6 +29,19 @@ window.addEventListener('beforeunload', () => {
 });
 
 // === Control Functions ===
+function restartRobot() {
+    console.log('Restart Robot button clicked');
+    if (typeof isConnected !== 'undefined' && !isConnected) {
+        if (ds && typeof ds.restartRobot === 'function') {
+            ds.restartRobot();
+        } else {
+            console.error('Driver station not initialized or restartRobot not available');
+            alert('Driver station not ready yet, please wait...');
+        }
+    } else {
+        alert('Robot is connected. Restart only allowed when disconnected.');
+    }
+}
 
 function enableRobot() {
     console.log('Enable button clicked');

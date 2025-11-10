@@ -3,6 +3,19 @@
  */
 
 class FRCDriverStation {
+    async restartRobot() {
+        try {
+            const result = await this.makeRequest('restart_robot');
+            if (result && result.success) {
+                alert('Robot restart command sent successfully.');
+            } else {
+                alert('Failed to restart robot: ' + (result.error || 'Unknown error'));
+            }
+        } catch (error) {
+            console.error('Failed to restart robot', error);
+            alert('Error sending restart command: ' + error.message);
+        }
+    }
     constructor() {
         this.updateInterval = null;
         this.retryCount = 0;
