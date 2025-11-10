@@ -7,6 +7,7 @@ import http.server
 import urllib.parse
 import json
 import os
+import subprocess
 import sys
 
 from .config import Config
@@ -192,6 +193,22 @@ class FRCDriverStationHandler(http.server.SimpleHTTPRequestHandler):
             status['mode_string'] = self.ds.get_mode_string()
             status['connected'] = self.ds.is_connected()
             return status
+        
+        elif action == 'restart_robot':
+            try:
+                # Start the robot command in the background as a daemon process
+                # Using Popen so it runs independently without waiting
+                subprocess.Popen(
+                    ['sudo', './robotCommand'],
+                    cwd='/home/lvuser',
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    stdin=subprocess.DEVNULL,
+                    start_new_session=True  # Detach from parent process
+                )
+                return {'success': True, 'message': 'Robot restart command sent'}
+            except Exception as e:
+                return {'success': False, 'error': str(e)}
         
         else:
             return {'error': f'Unknown action: {action}'}
