@@ -194,19 +194,31 @@ class FRCDriverStationHandler(http.server.SimpleHTTPRequestHandler):
             status['connected'] = self.ds.is_connected()
             return status
         
-        elif action == 'restart_robot':
+        elif action == 'start_robot':
             try:
-                # Start the robot command in the background as a daemon process
-                # Using Popen so it runs independently without waiting
+                # Start the robot code using VMX robot manager
                 subprocess.Popen(
-                    ['sudo', './robotCommand'],
-                    cwd='/home/lvuser',
+                    ['/usr/local/kauailabs/bin/vmx_robot_manager.sh', 'start'],
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                     stdin=subprocess.DEVNULL,
-                    start_new_session=True  # Detach from parent process
+                    start_new_session=True
                 )
-                return {'success': True, 'message': 'Robot restart command sent'}
+                return {'success': True, 'message': 'Robot code start command sent'}
+            except Exception as e:
+                return {'success': False, 'error': str(e)}
+        
+        elif action == 'stop_robot':
+            try:
+                # Stop the robot code using VMX robot manager
+                subprocess.Popen(
+                    ['/usr/local/kauailabs/bin/vmx_robot_manager.sh', 'stop'],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    stdin=subprocess.DEVNULL,
+                    start_new_session=True
+                )
+                return {'success': True, 'message': 'Robot code stop command sent'}
             except Exception as e:
                 return {'success': False, 'error': str(e)}
         

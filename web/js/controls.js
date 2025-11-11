@@ -29,17 +29,23 @@ window.addEventListener('beforeunload', () => {
 });
 
 // === Control Functions ===
-function restartRobot() {
-    console.log('Restart Robot button clicked');
-    if (typeof isConnected !== 'undefined' && !isConnected) {
-        if (ds && typeof ds.restartRobot === 'function') {
-            ds.restartRobot();
-        } else {
-            console.error('Driver station not initialized or restartRobot not available');
-            alert('Driver station not ready yet, please wait...');
-        }
+function startRobot() {
+    console.log('Start Robot button clicked');
+    if (ds && typeof ds.startRobotCode === 'function') {
+        ds.startRobotCode();
     } else {
-        alert('Robot is connected. Restart only allowed when disconnected.');
+        console.error('Driver station not initialized or startRobotCode not available');
+        alert('Driver station not ready yet, please wait...');
+    }
+}
+
+function stopRobot() {
+    console.log('Stop Robot button clicked');
+    if (ds && typeof ds.stopRobotCode === 'function') {
+        ds.stopRobotCode();
+    } else {
+        console.error('Driver station not initialized or stopRobotCode not available');
+        alert('Driver station not ready yet, please wait...');
     }
 }
 

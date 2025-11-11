@@ -42,7 +42,9 @@
     <div class="logs-section">
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
         <div class="log-title">Robot Logs</div>
-        <button id="restart-robot-btn" class="btn btn-restart" onclick="restartRobot()" style="padding: 8px 14px; font-size: 12px;">Restart</button>
+        <button id="clearlog-robot-btn" class="btn btn-clearlog" onclick="clearLog()" style="padding: 8px 14px; font-size: 12px;">Clear</button>
+        <button id="start-robot-btn" class="btn btn-start" onclick="startRobot()" style="padding: 8px 14px; font-size: 12px;">Start</button>
+        <button id="stop-robot-btn" class="btn btn-stop" onclick="stopRobot()" style="padding: 8px 14px; font-size: 12px;">Stop</button>
       </div>
       <div class="log-container" id="robot-log">Loading log...</div>
     </div>

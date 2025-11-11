@@ -3,19 +3,34 @@
  */
 
 class FRCDriverStation {
-    async restartRobot() {
+    async startRobotCode() {
         try {
-            const result = await this.makeRequest('restart_robot');
+            const result = await this.makeRequest('start_robot');
             if (result && result.success) {
-                alert('Robot restart command sent successfully.');
+                console.log('Robot code started successfully');
             } else {
-                alert('Failed to restart robot: ' + (result.error || 'Unknown error'));
+                alert('Failed to start robot: ' + (result.error || 'Unknown error'));
             }
         } catch (error) {
-            console.error('Failed to restart robot', error);
-            alert('Error sending restart command: ' + error.message);
+            console.error('Failed to start robot', error);
+            alert('Error sending start command: ' + error.message);
         }
     }
+
+    async stopRobotCode() {
+        try {
+            const result = await this.makeRequest('stop_robot');
+            if (result && result.success) {
+                console.log('Robot code stopped successfully');
+            } else {
+                alert('Failed to stop robot: ' + (result.error || 'Unknown error'));
+            }
+        } catch (error) {
+            console.error('Failed to stop robot', error);
+            alert('Error sending stop command: ' + error.message);
+        }
+    }
+
     constructor() {
         this.updateInterval = null;
         this.retryCount = 0;
