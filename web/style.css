@@ -172,6 +172,15 @@ h1 {
   background: #da190b;
 }
 
+.btn-switchlog {
+  background: #2196F3;
+  color: white;
+}
+
+.btn-switchlog:hover {
+  background: #0b7dda;
+}
+
 #team-input, #address-input {
   padding: 8px 12px;
   border: 1px solid #444;

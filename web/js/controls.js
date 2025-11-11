@@ -29,6 +29,27 @@ window.addEventListener('beforeunload', () => {
 });
 
 // === Control Functions ===
+let currentLogSource = 'networktables'; // 'networktables' or 'userprogram'
+
+function switchLog() {
+    console.log('Switch Log button clicked');
+    if (ds && typeof ds.switchLogSource === 'function') {
+        currentLogSource = currentLogSource === 'networktables' ? 'userprogram' : 'networktables';
+        ds.switchLogSource(currentLogSource);
+        
+        // Update the title
+        const titleEl = document.getElementById('log-title-text');
+        if (titleEl) {
+            titleEl.textContent = currentLogSource === 'networktables' 
+                ? 'Robot Logs (NetworkTables)' 
+                : 'Robot Logs (FRC UserProgram)';
+        }
+    } else {
+        console.error('Driver station not initialized or switchLogSource not available');
+        alert('Driver station not ready yet, please wait...');
+    }
+}
+
 function startRobot() {
     console.log('Start Robot button clicked');
     if (ds && typeof ds.startRobotCode === 'function') {

@@ -23,6 +23,79 @@ class WebSocketServer:
         self._nt_initialized = False
         self._ws_loop = None
         self.driver_station = None  # Will be set by HTTP handler
+        self._file_log_threads = {}  # Track file log streaming threads per client
+        
+    def _start_file_log_stream(self, websocket):
+        """Start streaming FRC UserProgram log file to the client"""
+        import subprocess
+        
+        # Stop any existing stream for this client
+        self._stop_file_log_stream(websocket)
+        
+        def stream_file_log():
+            log_file = '/var/local/kauailabs/log/FRC_UserProgram.log'
+            try:
+                # Use tail -f to follow the log file
+                process = subprocess.Popen(
+                    ['tail', '-n', '100', '-f', log_file],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True
+                )
+                
+                # Store process so we can kill it later
+                self._file_log_threads[websocket] = process
+                
+                print(f"Started streaming {log_file} to client")
+                
+                # Read and send lines
+                for line in iter(process.stdout.readline, ''):
+                    # Check if we should stop (process removed from dict)
+                    if websocket not in self._file_log_threads:
+                        break
+                    try:
+                        # Schedule send in the websocket loop
+                        asyncio.run_coroutine_threadsafe(
+                            websocket.send(json.dumps({'type': 'log', 'line': line.rstrip()})),
+                            self._ws_loop
+                        )
+                    except Exception as e:
+                        print(f"Error sending file log line: {e}")
+                        break
+                        
+            except FileNotFoundError:
+                error_msg = f"Log file not found: {log_file}"
+                print(error_msg)
+                asyncio.run_coroutine_threadsafe(
+                    websocket.send(json.dumps({'type': 'log', 'line': error_msg})),
+                    self._ws_loop
+                )
+            except Exception as e:
+                error_msg = f"Error streaming log file: {e}"
+                print(error_msg)
+                asyncio.run_coroutine_threadsafe(
+                    websocket.send(json.dumps({'type': 'log', 'line': error_msg})),
+                    self._ws_loop
+                )
+            finally:
+                if websocket in self._file_log_threads:
+                    del self._file_log_threads[websocket]
+        
+        # Start streaming in a background thread
+        thread = threading.Thread(target=stream_file_log, daemon=True)
+        thread.start()
+    
+    def _stop_file_log_stream(self, websocket):
+        """Stop streaming file log for a client"""
+        if websocket in self._file_log_threads:
+            process = self._file_log_threads[websocket]
+            try:
+                process.terminate()
+                process.wait(timeout=1)
+            except:
+                process.kill()
+            del self._file_log_threads[websocket]
+            print("Stopped file log streaming")
         
     def init_networktables(self, server_ip: str = None):
         """Initialize NetworkTables connection"""
@@ -196,7 +269,7 @@ class WebSocketServer:
             }))
 
             async for msg in websocket:
-                # Handle incoming joystick data from web client
+                # Handle incoming messages from web client
                 try:
                     data = json.loads(msg)
                     if data.get('type') == 'joystick_update':
@@ -208,6 +281,18 @@ class WebSocketServer:
                             self.driver_station.update_joysticks(joystick_data)
                         else:
                             print(f"   ⚠️ WARNING: driver_station not available! self.driver_station = {self.driver_station}")
+                    elif data.get('type') == 'switch_log':
+                        log_source = data.get('source', 'networktables')
+                        print(f"Switching log source to: {log_source}")
+                        # Start streaming the requested log source
+                        if log_source == 'userprogram':
+                            self._start_file_log_stream(websocket)
+                        else:
+                            self._stop_file_log_stream(websocket)
+                            # Send NetworkTables logs
+                            with self._log_lock:
+                                if self._log_lines:
+                                    await websocket.send(json.dumps({'type': 'log_init', 'data': self._log_lines}))
                 except json.JSONDecodeError:
                     pass  # Ignore invalid JSON
                 except Exception as e:
@@ -215,6 +300,8 @@ class WebSocketServer:
         except Exception as e:
             print(f"WebSocket error: {e}")
         finally:
+            # Clean up file log stream if active
+            self._stop_file_log_stream(websocket)
             self.system_monitor.remove_client(websocket)
             print(f"WebSocket client disconnected ({self.system_monitor.get_client_count()} total)")
 

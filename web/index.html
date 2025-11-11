@@ -41,9 +41,9 @@
   <div class="dashboard">
     <div class="logs-section">
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding: 0 1rem; box-sizing: border-box; width: 100%;">
-        <div class="log-title">Robot Logs</div>
+        <div class="log-title" id="log-title-text">Robot Logs (NetworkTables)</div>
         <div style="display: flex; gap: 8px;">
-          <button id="clearlog-robot-btn" class="btn btn-clearlog" onclick="clearLog()" style="padding: 8px 14px; font-size: 12px;">Clear</button>
+          <button id="switchlog-robot-btn" class="btn btn-switchlog" onclick="switchLog()" style="padding: 8px 14px; font-size: 12px;">Switch Log</button>
           <button id="start-robot-btn" class="btn btn-start" onclick="startRobot()" style="padding: 8px 14px; font-size: 12px;">Start</button>
           <button id="stop-robot-btn" class="btn btn-stop" onclick="stopRobot()" style="padding: 8px 14px; font-size: 12px;">Stop</button>
         </div>
