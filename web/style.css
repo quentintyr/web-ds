@@ -154,6 +154,24 @@ h1 {
   font-size: 12px;
 }
 
+.btn-start {
+  background: #4CAF50;
+  color: white;
+}
+
+.btn-start:hover {
+  background: #45a049;
+}
+
+.btn-stop {
+  background: #f44336;
+  color: white;
+}
+
+.btn-stop:hover {
+  background: #da190b;
+}
+
 #team-input, #address-input {
   padding: 8px 12px;
   border: 1px solid #444;
