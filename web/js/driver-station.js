@@ -34,21 +34,23 @@ class FRCDriverStation {
     switchLogSource(source) {
         console.log(`Switching log source to: ${source}`);
         
+        // Clear the log container immediately
+        const logContainer = document.getElementById('robot-log');
+        if (logContainer) {
+            logContainer.innerHTML = 'Loading logs...';
+        }
+        
         // Send message to WebSocket server to switch log source
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
             this.ws.send(JSON.stringify({
                 type: 'switch_log',
                 source: source
             }));
-            
-            // Clear the log container
-            const logContainer = document.getElementById('robot-log');
-            if (logContainer) {
-                logContainer.innerHTML = 'Loading logs...';
-            }
         } else {
             console.error('WebSocket not connected');
-            alert('Cannot switch logs - WebSocket not connected');
+            if (logContainer) {
+                logContainer.innerHTML = 'Error: WebSocket not connected';
+            }
         }
     }
 

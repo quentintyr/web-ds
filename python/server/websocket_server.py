@@ -35,9 +35,20 @@ class WebSocketServer:
         def stream_file_log():
             log_file = '/var/local/kauailabs/log/FRC_UserProgram.log'
             try:
-                # Use tail -f to follow the log file
+                # First, send initial batch of logs
+                try:
+                    initial_lines = subprocess.check_output(['tail', '-n', '100', log_file], text=True)
+                    if initial_lines:
+                        asyncio.run_coroutine_threadsafe(
+                            websocket.send(json.dumps({'type': 'log_init', 'data': initial_lines.splitlines()})),
+                            self._ws_loop
+                        )
+                except subprocess.CalledProcessError:
+                    pass  # File might not exist yet
+                
+                # Now start following the file
                 process = subprocess.Popen(
-                    ['tail', '-n', '100', '-f', log_file],
+                    ['tail', '-n', '0', '-f', log_file],  # -n 0 means start from end (only new lines)
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     text=True
