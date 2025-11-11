@@ -231,7 +231,7 @@ class FRCDriverStation {
                         try {
                             const logContainer = document.getElementById('robot-log');
                             if (logContainer) {
-                                const html = this.convertAnsiToHtml(String(msg.line) + '\\n');
+                                const html = this.convertAnsiToHtml(String(msg.line) + '\n');
                                 // Append and keep auto-scroll behaviour
                                 const atBottom = logContainer.scrollHeight - logContainer.scrollTop <= logContainer.clientHeight + 5;
                                 logContainer.insertAdjacentHTML('beforeend', html);
@@ -243,7 +243,7 @@ class FRCDriverStation {
                         try {
                             const logContainer = document.getElementById('robot-log');
                             if (logContainer) {
-                                const html = this.convertAnsiToHtml(msg.data.join('\\n'));
+                                const html = this.convertAnsiToHtml(msg.data.join('\n'));
                                 logContainer.innerHTML = html;
                                 logContainer.scrollTop = logContainer.scrollHeight;
                             }
