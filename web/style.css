@@ -88,8 +88,8 @@ h1 {
 }
 
 .btn {
-  padding: 12px 20px;
-  font-size: 14px;
+  padding: 8px 14px;
+  font-size: 12px;
   font-weight: 600;
   border: none;
   border-radius: 6px;
@@ -403,3 +403,11 @@ h1 {
   100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
 }
 
+.button-log-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  box-sizing: border-box;
+  width: 100%;
+}
